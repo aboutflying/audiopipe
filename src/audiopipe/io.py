@@ -1,8 +1,32 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Iterator
+import shutil
+import subprocess
 import numpy as np
 import soundfile as sf
+
+
+def ensure_readable(path: Path, scratch_dir: Path) -> Path:
+    """Return a libsndfile-readable path for `path`. WAV/FLAC/etc. pass through;
+    formats libsndfile can't decode (M4A/AAC/ALAC) are transcoded to WAV via
+    macOS `afconvert`. Raises if unreadable and no transcoder is available."""
+    path = Path(path)
+    try:
+        sf.info(str(path))
+        return path
+    except sf.LibsndfileError:
+        pass  # not a libsndfile format; try CoreAudio
+    afconvert = shutil.which("afconvert")
+    if not afconvert:
+        raise RuntimeError(f"{path.name}: not a libsndfile format and `afconvert` "
+                           "(macOS) is unavailable to transcode it")
+    scratch_dir = Path(scratch_dir)
+    scratch_dir.mkdir(parents=True, exist_ok=True)
+    out = scratch_dir / f"{path.stem}.decoded.wav"
+    subprocess.run([afconvert, "-f", "WAVE", "-d", "LEI16", str(path), str(out)],
+                   check=True, capture_output=True)
+    return out
 
 
 def info(path: Path) -> tuple[int, int, int]:

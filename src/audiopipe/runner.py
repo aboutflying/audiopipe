@@ -19,11 +19,14 @@ def render_one(input_path: Path, config_path: Path, out_path: Path,
     Returns (out_path, final_edl, run_config)."""
     input_path = Path(input_path)
     scratch_dir.mkdir(parents=True, exist_ok=True)
-    src_sr, ch, n = io.info(input_path)
+    # Transcode non-libsndfile inputs (M4A/AAC) to a readable WAV in scratch;
+    # audio is read from `readable`, but the sidecar still hashes the original.
+    readable = io.ensure_readable(input_path, scratch_dir)
+    src_sr, ch, n = io.info(readable)
 
     stages, ctx, cfg = load_pipeline(config_path, scratch_dir)
     sr = _resolve_sr(src_sr, cfg["source"]["sample_rate"])
-    edl = EDL.single(input_path, n, sr, ch, cfg["seed"])
+    edl = EDL.single(readable, n, sr, ch, cfg["seed"])
 
     edl = run_chain(edl, stages, ctx)
 

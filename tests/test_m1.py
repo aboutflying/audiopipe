@@ -1,6 +1,8 @@
 from __future__ import annotations
 from pathlib import Path
 import json
+import shutil
+import subprocess
 import numpy as np
 import soundfile as sf
 import pytest
@@ -62,6 +64,24 @@ def test_passthrough_bit_identical(tmp_path, tone):
     b, _ = sf.read(str(out), dtype="float32", always_2d=True)
     assert a.shape == b.shape
     assert np.allclose(a, b, atol=1e-4)
+
+
+@pytest.mark.skipif(shutil.which("afconvert") is None, reason="needs macOS afconvert")
+def test_m4a_transcoded_on_fetch(tmp_path, tone):
+    # encode the tone to m4a (libsndfile can't read it), then process it
+    m4a = tmp_path / "clip.m4a"
+    subprocess.run(["afconvert", "-f", "m4af", "-d", "aac", str(tone), str(m4a)],
+                   check=True, capture_output=True)
+    with pytest.raises(sf.LibsndfileError):
+        sf.info(str(m4a))                       # confirm it's genuinely unreadable
+    cfg = _passthrough_cfg(tmp_path)
+    out = tmp_path / "out.wav"
+    render_one(m4a, cfg, out, tmp_path / "scratch")
+    assert out.exists() and io.frames_of(out) > 0
+    # sidecar hashes the original m4a, not the decoded wav
+    side = json.loads(out.with_suffix(".json").read_text())
+    assert side["input"] == str(m4a)
+    assert side["input_sha256"] == sha256(m4a)
 
 
 def test_process_drains_inbox_and_sidecar(tmp_path, tone):
