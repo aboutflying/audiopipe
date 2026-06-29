@@ -1,5 +1,5 @@
 seed: 42
-source: {mono: sum}
+source: {channels: sum}
 chain: [slice, dsp, sequence, splice]
 slice: {strategy: grid, amount: 0.55, jitter: 0.3}
 dsp: {drive: 0.2, filter: 0.35, chorus: 0.25, reverb: 0.3}

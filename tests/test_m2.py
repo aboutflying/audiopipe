@@ -15,8 +15,8 @@ from audiopipe.runner import render_one
 from .conftest import write_tone
 
 
-def _ctx(tmp_path, seed=42, mono="sum"):
-    return Context(scratch_dir=tmp_path, rng=random.Random(seed), mono=mono)
+def _ctx(tmp_path, seed=42, channels="sum"):
+    return Context(scratch_dir=tmp_path, rng=random.Random(seed), channels=channels)
 
 
 def _single(tone):
@@ -64,7 +64,7 @@ def test_splice_cut_length(tmp_path, tone):
     e = Segmenter("grid", 0.7, 0.0).process(_single(tone), _ctx(tmp_path))
     total = sum(s.n_frames for s in e.segments)
     out = tmp_path / "spliced.wav"
-    render_edl(e, out, join="cut", smear=0.0, mono="sum")
+    render_edl(e, out, join="cut", smear=0.0, channels="sum")
     assert io.frames_of(out) == total
 
 
@@ -72,7 +72,7 @@ def test_crossfade_no_clipping(tmp_path, tone):
     e = Segmenter("grid", 0.7, 0.0).process(_single(tone), _ctx(tmp_path))
     e = Sequencer("shuffle", 0.7, 0.0).process(e, _ctx(tmp_path))
     out = tmp_path / "xf.wav"
-    render_edl(e, out, join="crossfade", smear=0.3, mono="sum")
+    render_edl(e, out, join="crossfade", smear=0.3, channels="sum")
     data, _ = sf.read(str(out), dtype="float32", always_2d=True)
     assert np.max(np.abs(data)) <= 1.0
 
@@ -87,8 +87,8 @@ def test_zerocross_reduces_click_vs_cut(tmp_path, tone):
     e = Sequencer("shuffle", 0.9, 0.0).process(e, _ctx(tmp_path))
     cut = tmp_path / "cut.wav"
     zc = tmp_path / "zc.wav"
-    render_edl(e, cut, join="cut", smear=0.0, mono="sum")
-    render_edl(e, zc, join="zerocross", smear=0.0, mono="sum")
+    render_edl(e, cut, join="cut", smear=0.0, channels="sum")
+    render_edl(e, zc, join="zerocross", smear=0.0, channels="sum")
     assert _click_energy(zc) < _click_energy(cut)
 
 

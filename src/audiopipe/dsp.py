@@ -54,7 +54,7 @@ class Dsp:
         writer = None
         total = 0
         first = True
-        for block in io.read_window(seg.source, seg.start_frame, seg.n_frames, mono=ctx.mono):
+        for block in io.read_window(seg.source, seg.start_frame, seg.n_frames, channels=ctx.channels):
             y = board(block, seg.sample_rate, reset=first)  # reset state per grain
             first = False
             if writer is None:

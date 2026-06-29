@@ -18,7 +18,7 @@ from audiopipe.tape_loop import run_tape_loop
 
 
 def _ctx(tmp_path, seed=42):
-    return Context(scratch_dir=tmp_path, rng=random.Random(seed), mono="sum")
+    return Context(scratch_dir=tmp_path, rng=random.Random(seed), channels="sum")
 
 
 def write_clicks(path, sr=16000, times=(0.25, 0.5, 0.75, 1.25, 1.5)):
@@ -129,7 +129,7 @@ def test_disintegrates_across_cycles(tmp_path):
     scratch = tmp_path / "scr"
     scratch.mkdir()
     loop = scratch / "loop.wav"
-    splice.render_edl(edl, loop, join="cut", smear=0.0, mono="sum")
+    splice.render_edl(edl, loop, join="cut", smear=0.0, channels="sum")
     e = EDL(segments=[Segment(loop, 0, io.frames_of(loop), 16000, 1)],
             seed=42, sample_rate=16000)
     run_tape_loop(e, _ctx(scratch), {"cycles": 8, "evolve": 0.6,

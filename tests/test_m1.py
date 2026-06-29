@@ -51,7 +51,7 @@ def test_queue_claim_atomic_idempotent(tmp_path, tone):
 
 def _passthrough_cfg(tmp_path) -> Path:
     p = tmp_path / "pipeline.yaml"
-    p.write_text(yaml.safe_dump({"seed": 7, "source": {"mono": "sum"},
+    p.write_text(yaml.safe_dump({"seed": 7, "source": {"channels": "sum"},
                                  "chain": ["passthrough"]}))
     return p
 

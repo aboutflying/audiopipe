@@ -9,7 +9,7 @@ from . import io
 
 def _mono(seg: Segment) -> np.ndarray:
     """Read a segment's audio summed to mono (1D float32)."""
-    a = io.read_frames(seg.source, seg.start_frame, seg.n_frames, mono="sum")
+    a = io.read_frames(seg.source, seg.start_frame, seg.n_frames, channels="sum")
     return a[:, 0] if a.ndim == 2 else a
 
 

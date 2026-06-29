@@ -39,20 +39,20 @@ def frames_of(path: Path) -> int:
     return sf.info(str(path)).frames
 
 
-def _apply_mono(block: np.ndarray, mono: str) -> np.ndarray:
-    """block is (n, channels). Return (n, channels') per policy."""
+def _apply_channels(block: np.ndarray, channels: str) -> np.ndarray:
+    """block is (n, channels). Return (n, channels') per the source.channels policy."""
     if block.ndim == 1:
         block = block[:, None]
-    if block.shape[1] == 1 or mono == "independent":
+    if block.shape[1] == 1 or channels == "keep":
         return block
-    if mono == "sum":
+    if channels == "sum":
         return block.mean(axis=1, keepdims=True)
-    if mono == "left":
+    if channels == "left":
         return block[:, :1]
-    raise ValueError(f"unknown mono policy: {mono}")
+    raise ValueError(f"unknown channel policy: {channels}")
 
 
-def read_window(path: Path, start: int, n: int, mono: str = "independent",
+def read_window(path: Path, start: int, n: int, channels: str = "keep",
                 block: int = 1 << 16) -> Iterator[np.ndarray]:
     """Yield (frames, channels) float32 blocks covering [start, start+n).
     Windowed: never loads the whole file."""
@@ -64,16 +64,16 @@ def read_window(path: Path, start: int, n: int, mono: str = "independent",
             if len(chunk) == 0:
                 break
             remaining -= len(chunk)
-            yield _apply_mono(chunk, mono)
+            yield _apply_channels(chunk, channels)
 
 
-def read_frames(path: Path, start: int, n: int, mono: str = "independent") -> np.ndarray:
+def read_frames(path: Path, start: int, n: int, channels: str = "keep") -> np.ndarray:
     """Read [start, start+n) fully as one (frames, channels) array. For small
     grains and boundary windows only — use read_window for long spans."""
     with sf.SoundFile(str(path)) as f:
         f.seek(start)
         block = f.read(n, dtype="float32", always_2d=True)
-    return _apply_mono(block, mono)
+    return _apply_channels(block, channels)
 
 
 class BlockWriter:

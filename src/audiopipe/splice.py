@@ -12,10 +12,10 @@ def _smear_frames(smear: float, sr: int) -> int:
     return max(1, int((0.005 + smear * 0.095) * sr))
 
 
-def _snap_zerocross(source: Path, frame: int, mono: str, search: int = 64) -> int:
+def _snap_zerocross(source: Path, frame: int, channels: str, search: int = 64) -> int:
     """Nudge `frame` to the nearest zero crossing within ±search frames."""
     start = max(0, frame - search)
-    win = io.read_frames(source, start, 2 * search, mono)
+    win = io.read_frames(source, start, 2 * search, channels)
     if len(win) == 0:
         return frame
     m = win.mean(axis=1)
@@ -27,29 +27,29 @@ def _snap_zerocross(source: Path, frame: int, mono: str, search: int = 64) -> in
     return int(cand[np.argmin(np.abs(cand - frame))])
 
 
-def render_edl(edl: EDL, out_path: Path, *, join: str, smear: float, mono: str) -> None:
+def render_edl(edl: EDL, out_path: Path, *, join: str, smear: float, channels: str) -> None:
     """Materialize the EDL to one continuous wav. cut/zerocross stream block by
     block (safe on whole-file segments); crossfade reads per grain."""
     segs = edl.segments
     sr = edl.sample_rate
-    out_ch = 1 if mono in ("sum", "left") else (segs[0].channels if segs else 1)
+    out_ch = 1 if channels in ("sum", "left") else (segs[0].channels if segs else 1)
     with io.BlockWriter(out_path, sr, out_ch) as w:
         if join == "crossfade":
-            _render_crossfade(segs, w, mono, _smear_frames(smear, sr))
+            _render_crossfade(segs, w, channels, _smear_frames(smear, sr))
         else:
             for seg in segs:
                 s, e = seg.start_frame, seg.end_frame
                 if join == "zerocross":
-                    s = _snap_zerocross(seg.source, s, mono)
-                    e = max(s + 1, _snap_zerocross(seg.source, e, mono))
-                for block in io.read_window(seg.source, s, e - s, mono=mono):
+                    s = _snap_zerocross(seg.source, s, channels)
+                    e = max(s + 1, _snap_zerocross(seg.source, e, channels))
+                for block in io.read_window(seg.source, s, e - s, channels=channels):
                     w.write(block)
 
 
-def _render_crossfade(segs, w, mono, L0) -> None:
+def _render_crossfade(segs, w, channels, L0) -> None:
     tail = None  # previous grain's faded-out overlap, pending write
     for i, seg in enumerate(segs):
-        audio = io.read_frames(seg.source, seg.start_frame, seg.n_frames, mono)
+        audio = io.read_frames(seg.source, seg.start_frame, seg.n_frames, channels)
         if len(audio) == 0:
             continue
         body_start = 0
@@ -83,7 +83,7 @@ class Splice:
 
     def process(self, edl: EDL, ctx: Context) -> EDL:
         out_path = ctx.scratch_dir / f"splice_{uuid.uuid4().hex[:8]}.wav"
-        render_edl(edl, out_path, join=self.join, smear=self.smear, mono=ctx.mono)
+        render_edl(edl, out_path, join=self.join, smear=self.smear, channels=ctx.channels)
         sr, ch, n = io.info(out_path)
         rendered = Segment(source=out_path, start_frame=0, end_frame=n,
                            sample_rate=sr, channels=ch, ops=(f"splice:{self.join}",))

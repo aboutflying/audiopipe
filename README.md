@@ -108,12 +108,12 @@ seed: 42                   # global determinism; change to roll a new variant
 
 ```yaml
 source:
-  mono: sum                # sum | left | independent
+  channels: sum            # sum | left | keep
   sample_rate: source      # "source" (keep input rate) or an int e.g. 44100
 ```
 
-- `mono` — how to fold channels: `sum` (mix to mono), `left` (take left
-  channel), `independent` (keep all channels).
+- `channels` — how to fold channels: `sum` (mix to mono), `left` (take left
+  channel), `keep` (preserve all channels, e.g. stereo through the whole chain).
 - `sample_rate` — `source` keeps the input rate; an integer would resample
   (the resample seam exists; not exercised by the default stages yet).
 
@@ -255,9 +255,9 @@ traceback, with the original input preserved.
 ## How it fits together
 
 ```
-io.py        windowed audio read/write, mono policy, M4A transcode seam
+io.py        windowed audio read/write, channel policy, M4A transcode seam
 segment.py   Segment + EDL — the reference-only intermediate representation
-stages/      Stage protocol + Context (scratch dir, seeded RNG, mono policy)
+stages/      Stage protocol + Context (scratch dir, seeded RNG, channel policy)
 segmenter / sequencer / splice / dsp   the EDL -> EDL stages
 analyze.py   librosa features (onset, silence, brightness, loudness)
 mapping.py   coarse 0..1 dials -> concrete values (the curves live here)

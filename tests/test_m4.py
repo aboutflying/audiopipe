@@ -17,9 +17,9 @@ from audiopipe.runner import render_one
 from .conftest import write_tone
 
 
-def _ctx(tmp_path, seed=42, mono="sum"):
+def _ctx(tmp_path, seed=42, channels="sum"):
     Path(tmp_path).mkdir(parents=True, exist_ok=True)
-    return Context(scratch_dir=Path(tmp_path), rng=random.Random(seed), mono=mono)
+    return Context(scratch_dir=Path(tmp_path), rng=random.Random(seed), channels=channels)
 
 
 def _single(tone, sr=16000):

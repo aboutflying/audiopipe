@@ -24,7 +24,7 @@ STAGES = {
 # Resolved defaults. Top-level and per-section keys are closed: unknown -> error.
 DEFAULTS = {
     "seed": 42,
-    "source": {"mono": "sum", "sample_rate": "source"},
+    "source": {"channels": "sum", "sample_rate": "source"},
     "chain": ["slice", "sequence", "splice"],
     "slice": {"strategy": "grid", "amount": 0.6, "jitter": 0.3},
     "sequence": {"feel": "shuffle", "strength": 0.7, "drop": 0.1,
@@ -75,7 +75,7 @@ def load_pipeline(config_path: Path | None, scratch_dir: Path):
     cfg = resolve_config(raw)
     stages = build_stages(cfg)
     ctx = Context(scratch_dir=Path(scratch_dir), rng=random.Random(cfg["seed"]),
-                  mono=cfg["source"]["mono"])
+                  channels=cfg["source"]["channels"])
     return stages, ctx, cfg
 
 

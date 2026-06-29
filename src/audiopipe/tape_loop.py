@@ -17,7 +17,7 @@ def _loop_content(edl: EDL, ctx: Context) -> Path:
     if len(segs) == 1 and ctx.scratch_dir in Path(segs[0].source).parents:
         return Path(segs[0].source)
     path = ctx.scratch_dir / "loop.wav"
-    render_edl(edl, path, join="cut", smear=0.0, mono=ctx.mono)
+    render_edl(edl, path, join="cut", smear=0.0, channels=ctx.channels)
     return path
 
 
@@ -29,12 +29,12 @@ def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, out_path: Path) -> None:
 
     if cycles <= 1:
         sf.write(str(out_path), io.read_frames(loop_path, 0, io.frames_of(loop_path),
-                                               "independent"), io.info(loop_path)[0])
+                                               "keep"), io.info(loop_path)[0])
         edl.record("tape_loop", {"cycles": 1})
         return
 
     sr, ch, n = io.info(loop_path)
-    original = io.read_frames(loop_path, 0, n, "independent")
+    original = io.read_frames(loop_path, 0, n, "keep")
     evolve = float(cfg["evolve"])
     recursive = bool(cfg["recursive"])
     span = max(cycles - 1, 1)
@@ -59,7 +59,7 @@ def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, out_path: Path) -> None:
 
     edl.segments = cycle_segs
     seam_edl = EDL(segments=cycle_segs, seed=edl.seed, sample_rate=sr)
-    render_edl(seam_edl, out_path, join=cfg["seam"], smear=0.2, mono="independent")
+    render_edl(seam_edl, out_path, join=cfg["seam"], smear=0.2, channels="keep")
     edl.record("tape_loop", {"cycles": cycles, "evolve": evolve,
                              "recursive": recursive, "seam": cfg["seam"],
                              "per_cycle_wear": per_cycle_wear})

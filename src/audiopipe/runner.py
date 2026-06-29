@@ -19,26 +19,31 @@ def render_one(input_path: Path, config_path: Path, out_path: Path,
     Returns (out_path, final_edl, run_config)."""
     input_path = Path(input_path)
     scratch_dir.mkdir(parents=True, exist_ok=True)
-    # Transcode non-libsndfile inputs (M4A/AAC) to a readable WAV in scratch;
-    # audio is read from `readable`, but the sidecar still hashes the original.
-    readable = io.ensure_readable(input_path, scratch_dir)
-    src_sr, ch, n = io.info(readable)
+    try:
+        # Transcode non-libsndfile inputs (M4A/AAC) to a readable WAV in scratch;
+        # audio is read from `readable`, but the sidecar still hashes the original.
+        readable = io.ensure_readable(input_path, scratch_dir)
+        src_sr, ch, n = io.info(readable)
 
-    stages, ctx, cfg = load_pipeline(config_path, scratch_dir)
-    sr = _resolve_sr(src_sr, cfg["source"]["sample_rate"])
-    edl = EDL.single(readable, n, sr, ch, cfg["seed"])
+        stages, ctx, cfg = load_pipeline(config_path, scratch_dir)
+        sr = _resolve_sr(src_sr, cfg["source"]["sample_rate"])
+        edl = EDL.single(readable, n, sr, ch, cfg["seed"])
 
-    edl = run_chain(edl, stages, ctx)
+        edl = run_chain(edl, stages, ctx)
 
-    # tape_loop (M3): post-chain construct, render-once then degrade per cycle.
-    if cfg["tape_loop"]["cycles"] > 1:
-        from .tape_loop import run_tape_loop
-        run_tape_loop(edl, ctx, cfg["tape_loop"], out_path)
-    else:
-        _finalize(edl, ctx, out_path, scratch_dir)
+        # tape_loop (M3): post-chain construct, render-once then degrade per cycle.
+        if cfg["tape_loop"]["cycles"] > 1:
+            from .tape_loop import run_tape_loop
+            run_tape_loop(edl, ctx, cfg["tape_loop"], out_path)
+        else:
+            _finalize(edl, ctx, out_path, scratch_dir)
 
-    sidecar.write_success(out_path, input_path=input_path, config=cfg, edl=edl)
-    return out_path, edl, cfg
+        sidecar.write_success(out_path, input_path=input_path, config=cfg, edl=edl)
+        return out_path, edl, cfg
+    finally:
+        # scratch holds only intermediate renders; output + sidecar are already
+        # written outside it. Always discard, even on failure.
+        shutil.rmtree(scratch_dir, ignore_errors=True)
 
 
 def _finalize(edl: EDL, ctx, out_path: Path, scratch_dir: Path) -> None:
@@ -48,7 +53,7 @@ def _finalize(edl: EDL, ctx, out_path: Path, scratch_dir: Path) -> None:
     if len(segs) == 1 and scratch_dir in Path(segs[0].source).parents:
         shutil.copy2(segs[0].source, out_path)
     else:
-        render_edl(edl, out_path, join="cut", smear=0.0, mono=ctx.mono)
+        render_edl(edl, out_path, join="cut", smear=0.0, channels=ctx.channels)
 
 
 def process_inbox(work_root: Path, config_path: Path) -> list[Path]:

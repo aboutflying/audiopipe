@@ -12,7 +12,7 @@ class Context:
     scratch_dir: Path          # where stages write rendered audio
     rng: random.Random         # seeded; all randomness draws from this
     target_sample_rate: int | None = None  # set if a stage requires a fixed SR
-    mono: str = "independent"  # source.mono policy, for stages that materialize
+    channels: str = "keep"     # source.channels policy, for stages that materialize
 
 
 @runtime_checkable
