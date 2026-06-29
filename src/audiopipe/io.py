@@ -95,16 +95,25 @@ class BlockWriter:
         self.close()
 
 
-def resample(block: np.ndarray, src_sr: int, dst_sr: int) -> np.ndarray:
-    """Resample (frames, channels) audio. Stub seam; not exercised in M1/M2.
-    Linear interpolation keeps it dependency-free until a stage needs better.
-    ponytail: linear resample; swap for scipy/librosa if quality matters (M3+)."""
-    if src_sr == dst_sr:
-        return block
+def resample_to(block: np.ndarray, n_out: int) -> np.ndarray:
+    """Linearly resample (frames, channels) audio to n_out frames. Varispeed:
+    fewer frames played at the same rate => faster + higher pitch (tape style).
+    ponytail: linear interp; swap for scipy/librosa if quality matters."""
     if block.ndim == 1:
         block = block[:, None]
-    n_out = round(block.shape[0] * dst_sr / src_sr)
-    xp = np.arange(block.shape[0])
-    x = np.linspace(0, block.shape[0] - 1, n_out)
+    n_in = block.shape[0]
+    if n_out == n_in or n_in == 0:
+        return block.astype("float32")
+    xp = np.arange(n_in)
+    x = np.linspace(0, n_in - 1, n_out)
     return np.stack([np.interp(x, xp, block[:, c]) for c in range(block.shape[1])],
                     axis=1).astype("float32")
+
+
+def resample(block: np.ndarray, src_sr: int, dst_sr: int) -> np.ndarray:
+    """Resample to a new sample rate (preserving pitch/duration). Stub seam,
+    not exercised in M1/M2."""
+    if src_sr == dst_sr:
+        return block
+    n = block.shape[0] if block.ndim > 1 else len(block)
+    return resample_to(block, round(n * dst_sr / src_sr))

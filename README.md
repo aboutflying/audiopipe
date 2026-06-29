@@ -128,7 +128,7 @@ chain:
 
 **Order is the composition.** Each name must be a registered stage; a stage
 absent from the list is skipped. Available: `slice`, `sequence`, `splice`,
-`dsp`, `passthrough`. Reordering needs no code change. Typical: put `dsp`
+`dsp`, `warp`, `passthrough`. Reordering needs no code change. Typical: put `dsp`
 anywhere (`slice -> dsp -> sequence -> splice` effects each grain;
 `... -> splice -> dsp`… isn't possible since splice ends the chain — `dsp`
 before `splice` to colour grains, after `slice` to colour the raw cuts).
@@ -215,6 +215,27 @@ for what each underlying effect does:
 
 To expose more pedalboard parameters or effects, extend `mapping.dsp_params`
 and `dsp._build_board`.
+
+### `warp` — reverse / varispeed per segment
+
+```yaml
+warp:
+  reverse: 0.0             # probability (0..1) a grain plays backwards; 1 = all
+  speed: 1.0              # playback rate: >1 faster+higher, <1 slower+lower
+  speed_jitter: 0.0        # per-grain random speed spread (tape wobble)
+```
+
+A sample-transforming stage (writes changed grains to scratch; untouched grains
+stay reference-only). Only takes effect when `warp` is in `chain`.
+
+- `reverse` — fraction of grains played backwards, chosen by the seeded RNG.
+  `0` none, `1` all, `0.5` ≈ half. (This reverses the **audio**; to reverse the
+  **order** of grains instead, use `sequence: {feel: reverse}`.)
+- `speed` — varispeed rate multiplier. `2.0` = an octave up at half length,
+  `0.5` = an octave down at double length. Pitch follows speed, like a tape
+  machine (it resamples; it does not pitch-preserve time-stretch).
+- `speed_jitter` — randomizes each grain's speed by up to `±speed_jitter`, for
+  drifting tape-wobble pitch.
 
 ### `tape_loop` — render-once, degrade-per-cycle *(needs `analysis` extra)*
 

@@ -10,6 +10,7 @@ from .segmenter import Segmenter
 from .sequencer import Sequencer
 from .splice import Splice
 from .dsp import Dsp
+from .warp import Warp
 from .segment import EDL
 
 # name -> (constructor, config section). A stage with no section takes no args.
@@ -19,6 +20,7 @@ STAGES = {
     "sequence": (Sequencer, "sequence"),
     "splice": (Splice, "splice"),
     "dsp": (Dsp, "dsp"),
+    "warp": (Warp, "warp"),
 }
 
 # Resolved defaults. Top-level and per-section keys are closed: unknown -> error.
@@ -31,6 +33,7 @@ DEFAULTS = {
                  "sort_by": "brightness"},
     "splice": {"join": "crossfade", "smear": 0.2},
     "dsp": {"drive": 0.2, "filter": 0.3, "chorus": 0.0, "reverb": 0.25},
+    "warp": {"reverse": 0.0, "speed": 1.0, "speed_jitter": 0.0},
     "tape_loop": {"cycles": 1, "evolve": 0.4, "recursive": False,
                   "seam": "crossfade"},
 }
