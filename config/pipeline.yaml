@@ -1,0 +1,33 @@
+seed: 42                    # global determinism; change to roll a new variant
+
+source:
+  mono: sum                # sum | left | independent
+  sample_rate: source      # "source" (keep input rate) or an int like 44100
+
+# Order IS the composition. Reorder to change slice<->process<->sequence order.
+# A stage absent from this list is skipped for the run.
+chain:
+  - slice
+  - sequence
+  - splice
+
+slice:
+  strategy: grid           # grid | random | onset | silence (onset/silence: M3)
+  amount: 0.6              # coarse density: low = long slices, high = chopped
+  jitter: 0.3              # imperfection: randomizes boundaries (0 = clean)
+
+sequence:
+  feel: shuffle            # shuffle | reverse | as-is | sort (sort: M3)
+  strength: 0.7            # how far from original order it strays
+  drop: 0.1                # fraction of slices discarded (0 = keep all)
+  sort_by: brightness      # brightness | loudness | duration (used by feel: sort)
+
+splice:
+  join: crossfade          # cut | zerocross | crossfade
+  smear: 0.2               # crossfade length as a coarse dial
+
+tape_loop:
+  cycles: 1                # 1 = off (plain single render)
+  evolve: 0.4              # accumulated wear per cycle (0 = faithful repeats)
+  recursive: false         # false = parameterized f(cycle); true = iterate op
+  seam: crossfade          # join at the loop point: cut | zerocross | crossfade
