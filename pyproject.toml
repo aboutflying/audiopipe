@@ -6,6 +6,7 @@ dependencies = ["soundfile", "numpy", "pyyaml"]
 
 [project.optional-dependencies]
 analysis = ["librosa", "scipy"]
+dsp = ["pedalboard"]
 
 [project.scripts]
 audiopipe = "audiopipe.cli:main"

@@ -9,6 +9,7 @@ from .stages.passthrough import Passthrough
 from .segmenter import Segmenter
 from .sequencer import Sequencer
 from .splice import Splice
+from .dsp import Dsp
 from .segment import EDL
 
 # name -> (constructor, config section). A stage with no section takes no args.
@@ -17,6 +18,7 @@ STAGES = {
     "slice": (Segmenter, "slice"),
     "sequence": (Sequencer, "sequence"),
     "splice": (Splice, "splice"),
+    "dsp": (Dsp, "dsp"),
 }
 
 # Resolved defaults. Top-level and per-section keys are closed: unknown -> error.
@@ -28,6 +30,7 @@ DEFAULTS = {
     "sequence": {"feel": "shuffle", "strength": 0.7, "drop": 0.1,
                  "sort_by": "brightness"},
     "splice": {"join": "crossfade", "smear": 0.2},
+    "dsp": {"drive": 0.2, "filter": 0.3, "chorus": 0.0, "reverb": 0.25},
     "tape_loop": {"cycles": 1, "evolve": 0.4, "recursive": False,
                   "seam": "crossfade"},
 }

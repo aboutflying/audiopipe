@@ -26,6 +26,14 @@ splice:
   join: crossfade          # cut | zerocross | crossfade
   smear: 0.2               # crossfade length as a coarse dial
 
+# M4 sample-transforming stage. Add `dsp` to chain to apply it (e.g. between
+# slice and sequence, or before splice). Each dial 0..1; 0 = effect off.
+dsp:
+  drive: 0.2               # distortion amount (0..30 dB)
+  filter: 0.3              # lowpass: high dial = darker
+  chorus: 0.0              # modulation wet mix
+  reverb: 0.25             # room size / wet
+
 tape_loop:
   cycles: 1                # 1 = off (plain single render)
   evolve: 0.4              # accumulated wear per cycle (0 = faithful repeats)
