@@ -138,3 +138,25 @@ def test_disintegrates_across_cycles(tmp_path):
     first, _ = sf.read(str(cyc[0].source))
     last, _ = sf.read(str(cyc[-1].source))
     assert np.sum(last ** 2) < np.sum(first ** 2)   # progressive decay
+
+
+def test_tape_loop_region_windows_content(tmp_path):
+    sweep = write_sweep(tmp_path / "in.wav", seconds=4.0)
+    edl = EDL.single(Path(sweep), io.frames_of(sweep), 16000, 1, seed=42)
+    scratch = tmp_path / "scr"; scratch.mkdir()
+    loop = scratch / "loop.wav"
+    splice.render_edl(edl, loop, join="cut", smear=0.0, channels="sum")
+
+    def run(region):
+        e = EDL(segments=[Segment(loop, 0, io.frames_of(loop), 16000, 1)],
+                seed=42, sample_rate=16000)
+        cfg = {"cycles": 3, "evolve": 0.5, "recursive": False, "seam": "cut",
+               "region": region}
+        out = tmp_path / f"o_{region}.wav"
+        run_tape_loop(e, _ctx(scratch), cfg, out)
+        return io.frames_of(out)
+
+    full = run(None)
+    windowed = run([1.0, 2.0])          # a 1-second region, 3 cycles
+    assert abs(windowed - 3 * 16000) <= 3      # 3 cycles x 1s (cut seam, no overlap)
+    assert windowed < full                      # smaller than looping the whole 4s

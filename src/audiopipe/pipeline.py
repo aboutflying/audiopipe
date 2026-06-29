@@ -35,7 +35,7 @@ DEFAULTS = {
     "dsp": {"drive": 0.2, "filter": 0.3, "chorus": 0.0, "reverb": 0.25},
     "warp": {"reverse": 0.0, "speed": 1.0, "speed_jitter": 0.0},
     "tape_loop": {"cycles": 1, "evolve": 0.4, "recursive": False,
-                  "seam": "crossfade"},
+                  "seam": "crossfade", "region": None},
 }
 
 

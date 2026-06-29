@@ -245,6 +245,7 @@ tape_loop:
   evolve: 0.4              # accumulated wear per cycle (0 = faithful repeats)
   recursive: false         # false = f(cycle) [cheap]; true = iterate the op
   seam: crossfade          # loop-point join: cut | zerocross | crossfade
+  region: null             # null = whole output; [start_sec, end_sec] = a window
 ```
 
 A post-chain construct (not a `chain` entry). The chain renders the loop
@@ -254,6 +255,9 @@ operator (lowpass roll-off, level loss, dropouts) runs per cycle, ramped by
 fully worn.
 - `cycles` — number of revolutions; `1` disables the loop entirely.
 - `evolve` — how much wear accumulates by the final cycle.
+- `region` — which slice of the rendered chain output to loop, in **seconds of
+  the spliced output**. `null` loops the whole thing; `[8.0, 12.0]` loops only
+  that 4-second window. Only that window is read, then cycled and degraded.
 - `recursive` — `false` computes each cycle from the original (cheap, cycles
   independent); `true` degrades the previous cycle's output (for self-feeding
   effects like saturation).
