@@ -4,13 +4,14 @@ from pathlib import Path
 
 from .runner import render_one, process_inbox
 
-DEFAULT_CONFIG = Path("config/pipeline.yaml")
 DEFAULT_WORK = Path("work")
 
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="audiopipe")
-    p.add_argument("-c", "--config", type=Path, default=DEFAULT_CONFIG)
+    p.add_argument("-c", "--config", type=Path, default=None,
+                   help="pipeline config; omit to use built-in defaults, "
+                        "or pass a preset from config/presets/")
     p.add_argument("-w", "--work", type=Path, default=DEFAULT_WORK)
     sub = p.add_subparsers(dest="cmd", required=True)
 

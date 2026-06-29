@@ -1,0 +1,7 @@
+seed: 42
+source: {mono: sum}
+chain: [slice, dsp, sequence, splice]
+slice: {strategy: grid, amount: 0.45, jitter: 0.1}
+dsp: {drive: 0.0, filter: 0.15, chorus: 0.0, reverb: 0.18}
+sequence: {feel: shuffle, strength: 0.4, drop: 0.05}
+splice: {join: crossfade, smear: 0.35}

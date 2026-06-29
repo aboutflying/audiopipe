@@ -65,9 +65,13 @@ def build_stages(cfg: dict) -> list[Stage]:
     return stages
 
 
-def load_pipeline(config_path: Path, scratch_dir: Path):
-    """Return (stages, context, run_config)."""
-    raw = yaml.safe_load(Path(config_path).read_text()) if Path(config_path).exists() else {}
+def load_pipeline(config_path: Path | None, scratch_dir: Path):
+    """Return (stages, context, run_config). A missing/None config runs the
+    in-code DEFAULTS (slice -> sequence -> splice); presets in config/presets/
+    are opt-in overrides passed via -c."""
+    raw = {}
+    if config_path is not None and Path(config_path).exists():
+        raw = yaml.safe_load(Path(config_path).read_text())
     cfg = resolve_config(raw)
     stages = build_stages(cfg)
     ctx = Context(scratch_dir=Path(scratch_dir), rng=random.Random(cfg["seed"]),
