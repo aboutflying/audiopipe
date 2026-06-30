@@ -101,6 +101,11 @@ A config is YAML. **Unknown keys are an error** (fail loud); any omitted key
 takes its default. Dials are coarse, roughly `0..1` where noted — the loader
 and `mapping.py` expand them into concrete values.
 
+**Defaults are transparent.** Every omitted dial is a no-op, so a config only
+declares what it wants to change. The default chain is an *identity render*
+(clean grid grains, kept in order, hard-cut back together = the input). You opt
+into each effect by setting its dial; you never have to switch one off.
+
 ```yaml
 seed: 42                   # global determinism; change to roll a new variant
 ```
@@ -109,7 +114,7 @@ seed: 42                   # global determinism; change to roll a new variant
 
 ```yaml
 source:
-  channels: sum            # sum | left | keep
+  channels: keep           # keep | sum | left   (keep = transparent)
   sample_rate: source      # "source" (keep input rate) or an int e.g. 44100
 ```
 
@@ -140,7 +145,7 @@ before `splice` to colour grains, after `grain` to colour the raw cuts).
 grain:
   mode: grid               # grid | random | onset | silence
   density: 0.6             # low = long grains, high = chopped
-  drift: 0.3               # 0 = clean grid; higher randomizes boundaries
+  drift: 0.0               # 0 = clean grid; higher randomizes boundaries
 ```
 
 - `mode`:
@@ -156,9 +161,9 @@ grain:
 
 ```yaml
 rearrange:
-  feel: shuffle            # shuffle | reverse | as-is | sort
-  scramble: 0.7            # shuffle: how far segments stray from order
-  drop: 0.1                # fraction of segments discarded (0 = keep all)
+  feel: as-is              # as-is | shuffle | reverse | sort   (as-is = transparent)
+  scramble: 0.0            # shuffle: how far segments stray from order
+  drop: 0.0                # fraction of segments discarded (0 = keep all)
   sort_by: brightness      # sort: brightness | loudness | duration
 ```
 
@@ -178,8 +183,9 @@ rearrange:
 
 ```yaml
 splice:
-  join: crossfade          # cut | zerocross | crossfade
-  fade: 0.2                # crossfade length (coarse)
+  join: cut                # cut | zerocross | crossfade   (cut = transparent)
+  fade: 0.0                # crossfade length (coarse)
+  dropouts: 0.0            # printed-in tape dropouts (baked into the render)
 ```
 
 This is where segments are materialized (windowed reads, block-by-block write).
@@ -188,15 +194,19 @@ This is where segments are materialized (windowed reads, block-by-block write).
   - `zerocross` — snap cut points to zero crossings to reduce clicks.
   - `crossfade` — equal-power crossfade, length from `fade`.
 - `fade` — crossfade length, ~5 ms at `0` up to ~100 ms at `1`.
+- `dropouts` — random short signal dropouts (~10-50 ms, declicked with a ~3 ms
+  fade) **printed into the rendered output**. Because they're baked at render
+  time, a `tape_loop` repeats the *same* holes each revolution, like physical
+  tape damage. `0` = none; higher = more holes.
 
 ### `fx` — pedalboard effects *(needs `fx` extra)*
 
 ```yaml
 fx:
-  drive: 0.2               # distortion, 0..30 dB
-  tone: 0.3                # lowpass: high dial = darker
+  drive: 0.0               # distortion, 0..30 dB
+  tone: 0.0                # lowpass: high dial = darker
   chorus: 0.0              # modulation wet mix
-  reverb: 0.25             # room size / wet
+  reverb: 0.0              # room size / wet
 ```
 
 A sample-transforming stage: applies the effect chain to each segment and
@@ -243,22 +253,23 @@ stay reference-only). Only takes effect when `vari` is in `chain`.
 ```yaml
 tape_loop:
   cycles: 1                # 1 = single finishing pass; >1 = loop that disintegrates
-  wear: 0.4                # ramped roll-off + level loss across cycles (loop only)
+  wear: 0.0                # ramped roll-off + level loss across cycles (loop only)
   feedback: false          # false = f(cycle) [cheap]; true = iterate the op
-  seam: crossfade          # loop-point join: cut | zerocross | crossfade
+  seam: cut                # loop-point join: cut | zerocross | crossfade
   region: null             # null = whole output; [start_sec, end_sec] = a window
   hiss: 0.0                # tape noise floor (every pass, incl. cycles:1)
-  dropouts: 0.0            # random short signal dropouts (oxide shedding)
   flutter: 0.0             # wow & flutter (timebase warble) on the whole output
+  speed: 1.0               # steady varispeed: >1 faster+higher, <1 slower+lower
 ```
 
 A post-chain construct (not a `chain` entry) that applies **tape character** to
 the rendered output. It runs whenever `cycles > 1` **or** any character dial
-(`hiss`/`dropouts`/`flutter`) is set.
+(`hiss`/`flutter`/`speed`) is set. (Dropouts live at `splice.dropouts` — they're
+printed into the render so a loop repeats the same holes.)
 
 Two roles:
 - **Finishing pass** (`cycles: 1`): one tape pass over the spliced output —
-  `hiss` + `dropouts` + `flutter`, no loop. This is the "old tape" use.
+  `speed` + `flutter` + `hiss`, no loop. This is the "old tape" use.
 - **Disintegrating loop** (`cycles > 1`): the chain renders the loop content
   **once**, then `cycles` copies are made and a cheap *degrade* runs per cycle,
   with `wear` ramped by `wear × cycle / (cycles − 1)` — cycle 0 clean, the last
@@ -269,9 +280,10 @@ Dials:
 - `wear` — roll-off + level loss accumulated by the final cycle (loop only;
   cycle 0 is always clean).
 - `hiss` — additive tape noise floor (`1` ≈ −34 dB). Applied every pass.
-- `dropouts` — how many brief (~10–50 ms) signal dropouts. Applied every pass.
 - `flutter` — wow & flutter: a slow + fast LFO warps the timebase so pitch
   drifts (`vari.wobble` is the per-grain version; this is on the whole output).
+- `speed` — steady varispeed on the whole output (`vari.speed` is the per-grain
+  version). `2.0` = octave up / half length; pitch follows speed, like a tape.
 - `region` — which section of the rendered output to use, in **seconds of the
   spliced output**. `null` = whole; `[8.0, 12.0]` = that 4-second window only.
 - `feedback` — `false` computes each cycle from the original (cheap, cycles

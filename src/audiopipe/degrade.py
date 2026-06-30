@@ -24,22 +24,6 @@ def degrade(audio: np.ndarray, sr: int, wear: float, rng=None) -> np.ndarray:
     return out
 
 
-def add_dropouts(audio: np.ndarray, sr: int, amount: float, rng) -> np.ndarray:
-    """Random short signal dropouts (tape oxide shedding). amount 0..1 scales
-    how many holes; each is ~10-50 ms. Drawn from `rng` for reproducibility."""
-    if amount <= 0:
-        return audio
-    if audio.ndim == 1:
-        audio = audio[:, None]
-    out = audio.copy()
-    n = len(out)
-    for _ in range(int(amount * 12)):
-        hole = int(rng.uniform(0.01, 0.05) * sr)
-        start = rng.randint(0, max(0, n - hole))
-        out[start:start + hole] = 0.0
-    return out
-
-
 def add_hiss(audio: np.ndarray, level: float, rng) -> np.ndarray:
     """Additive tape noise floor. level 0..1 (level 1 ~= -34 dB). Seeded from
     `rng` so the hiss reproduces from the master seed."""

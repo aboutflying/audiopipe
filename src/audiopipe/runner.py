@@ -34,7 +34,7 @@ def render_one(input_path: Path, config_path: Path, out_path: Path,
         # tape_loop: post-chain construct. Runs to loop+disintegrate (cycles>1)
         # or as a single finishing tape pass when any character dial is set.
         tl = cfg["tape_loop"]
-        if tl["cycles"] > 1 or tl["hiss"] > 0 or tl["dropouts"] > 0 or tl["flutter"] > 0:
+        if tl["cycles"] > 1 or tl["hiss"] > 0 or tl["flutter"] > 0 or tl["speed"] != 1.0:
             from .tape_loop import run_tape_loop
             run_tape_loop(edl, ctx, tl, out_path)
         else:

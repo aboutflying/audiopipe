@@ -134,7 +134,7 @@ def test_disintegrates_across_cycles(tmp_path):
             seed=42, sample_rate=16000)
     run_tape_loop(e, _ctx(scratch), {"cycles": 8, "wear": 0.6,
                   "feedback": False, "seam": "cut", "hiss": 0.0,
-                  "dropouts": 0.0, "flutter": 0.0}, tmp_path / "o.wav")
+                  "flutter": 0.0, "speed": 1.0}, tmp_path / "o.wav")
     cyc = sorted(e.segments, key=lambda s: s.cycle)
     first, _ = sf.read(str(cyc[0].source))
     last, _ = sf.read(str(cyc[-1].source))
@@ -152,7 +152,7 @@ def test_tape_loop_region_windows_content(tmp_path):
         e = EDL(segments=[Segment(loop, 0, io.frames_of(loop), 16000, 1)],
                 seed=42, sample_rate=16000)
         cfg = {"cycles": 3, "wear": 0.5, "feedback": False, "seam": "cut",
-               "region": region, "hiss": 0.0, "dropouts": 0.0, "flutter": 0.0}
+               "region": region, "hiss": 0.0, "flutter": 0.0, "speed": 1.0}
         out = tmp_path / f"o_{region}.wav"
         run_tape_loop(e, _ctx(scratch), cfg, out)
         return io.frames_of(out)
@@ -164,20 +164,14 @@ def test_tape_loop_region_windows_content(tmp_path):
 
 
 def test_degrade_components_independent(tmp_path):
-    from audiopipe.degrade import degrade, add_hiss, add_dropouts, add_flutter
+    from audiopipe.degrade import add_hiss, add_flutter
     sweep = write_sweep(tmp_path / "s.wav", seconds=2.0)
     audio = io.read_frames(Path(sweep), 0, io.frames_of(sweep), "sum")
 
-    # hiss raises the noise floor in silence-ish material -> more energy
-    hissy = add_hiss(audio, 0.5, random.Random(1))
-    assert np.sum(hissy ** 2) > np.sum(audio ** 2)
-    # deterministic from seed
+    # hiss raises the noise floor -> more energy, deterministic from seed
+    assert np.sum(add_hiss(audio, 0.5, random.Random(1)) ** 2) > np.sum(audio ** 2)
     assert np.array_equal(add_hiss(audio, 0.5, random.Random(2)),
                           add_hiss(audio, 0.5, random.Random(2)))
-
-    # dropouts zero out samples -> some frames become exactly 0
-    dropped = add_dropouts(audio, 16000, 0.8, random.Random(3))
-    assert np.any(np.all(dropped == 0.0, axis=1))
 
     # flutter preserves length, changes content
     flut = add_flutter(audio, 16000, 0.8, random.Random(4))
@@ -185,20 +179,24 @@ def test_degrade_components_independent(tmp_path):
 
     # level 0 / amount 0 are no-ops
     assert np.array_equal(add_hiss(audio, 0.0, random.Random(5)), audio)
-    assert np.array_equal(add_dropouts(audio, 16000, 0.0, random.Random(6)), audio)
+    assert np.array_equal(add_flutter(audio, 16000, 0.0, random.Random(6)), audio)
 
 
 def test_tape_character_single_pass(tmp_path):
-    # cycles:1 with character dials applies a finishing tape pass via render_one
+    # cycles:1 with character dials applies a finishing tape pass (hiss/flutter/
+    # speed via tape_loop, dropouts printed at splice), via render_one
     sweep = write_sweep(tmp_path / "in.wav", seconds=3.0)
     cfg = tmp_path / "p.yaml"
     cfg.write_text(yaml.safe_dump({
         "chain": ["grain", "splice"],
-        "tape_loop": {"cycles": 1, "hiss": 0.4, "dropouts": 0.5, "flutter": 0.2}}))
+        "splice": {"dropouts": 0.5},
+        "tape_loop": {"cycles": 1, "hiss": 0.4, "flutter": 0.2, "speed": 1.1}}))
     out = tmp_path / "out.wav"
     _, edl, _ = render_one(sweep, cfg, out, tmp_path / "scratch")
     assert out.exists()
     tl = [h for h in edl.history if h["stage"] == "tape_loop"][0]["params"]
-    assert tl["cycles"] == 1 and tl["hiss"] == 0.4 and tl["dropouts"] == 0.5
+    assert tl["cycles"] == 1 and tl["hiss"] == 0.4 and tl["speed"] == 1.1
+    sp = [h for h in edl.history if h["stage"] == "splice"][0]["params"]
+    assert sp["dropouts"] == 0.5
     data, _ = sf.read(str(out))
-    assert np.any(data == 0.0)        # dropouts present
+    assert np.any(data == 0.0)        # dropouts printed

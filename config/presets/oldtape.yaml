@@ -2,10 +2,10 @@
 # the source plays through. Saturation + dull highs come from fx; the tape
 # character (hiss, dropouts, wow/flutter) is a finishing pass in tape_loop.
 seed: 42
-source: {channels: sum}            # most old tape is effectively mono
+source: {channels: keep}            # most old tape is effectively mono
 chain: [grain, fx, splice]         # no rearrange -> timeline preserved
-grain: {mode: grid, density: 0.6, drift: 0.05}   # gentle grains, slight timing drift
-fx:    {drive: 0.3, tone: 0.65, chorus: 0.1, reverb: 0.15}  # saturation, dull highs, faint age/space
-splice: {join: crossfade, fade: 0.15}
-# Finishing tape pass on the rendered output (cycles:1 = single pass, no loop):
-tape_loop: {cycles: 1, hiss: 0.25, dropouts: 0.2, flutter: 0.4}  # noise floor, oxide dropouts, wow & flutter
+grain: {mode: onset}   # gentle grains, slight timing drift
+fx:    {drive: 0.3, tone: 0.65, chorus: 0.1, reverb: 0.20}  # saturation, dull highs, faint age/space
+splice: {join: crossfade, fade: 0.15, dropouts: 0.2}   # dropouts printed into the render (repeat each loop)
+# Finishing tape pass on the rendered output: hiss, wow/flutter, varispeed, wear.
+tape_loop: {seam: crossfade, region: [30, 40], cycles: 8, hiss: 0.15, flutter: 0.4, speed: 1.0, wear: 0.4, feedback: true}

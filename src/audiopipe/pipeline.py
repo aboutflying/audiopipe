@@ -25,18 +25,21 @@ STAGES = {
 
 # Resolved defaults. Top-level and per-section keys are closed: unknown -> error.
 DEFAULTS = {
+    # Defaults are transparent: every omitted dial is a no-op, so a config only
+    # has to declare what it wants to change. The default chain is an identity
+    # render (clean grid grains, kept in order, hard-cut back together).
     "seed": 42,
-    "source": {"channels": "sum", "sample_rate": "source"},
+    "source": {"channels": "keep", "sample_rate": "source"},
     "chain": ["grain", "rearrange", "splice"],
-    "grain": {"mode": "grid", "density": 0.6, "drift": 0.3},
-    "rearrange": {"feel": "shuffle", "scramble": 0.7, "drop": 0.1,
+    "grain": {"mode": "grid", "density": 0.6, "drift": 0.0},
+    "rearrange": {"feel": "as-is", "scramble": 0.0, "drop": 0.0,
                   "sort_by": "brightness"},
-    "splice": {"join": "crossfade", "fade": 0.2},
-    "fx": {"drive": 0.2, "tone": 0.3, "chorus": 0.0, "reverb": 0.25},
+    "splice": {"join": "cut", "fade": 0.0, "dropouts": 0.0},
+    "fx": {"drive": 0.0, "tone": 0.0, "chorus": 0.0, "reverb": 0.0},
     "vari": {"reverse": 0.0, "speed": 1.0, "wobble": 0.0},
-    "tape_loop": {"cycles": 1, "wear": 0.4, "feedback": False,
-                  "seam": "crossfade", "region": None,
-                  "hiss": 0.0, "dropouts": 0.0, "flutter": 0.0},
+    "tape_loop": {"cycles": 1, "wear": 0.0, "feedback": False,
+                  "seam": "cut", "region": None,
+                  "hiss": 0.0, "flutter": 0.0, "speed": 1.0},
 }
 
 

@@ -112,3 +112,16 @@ def test_windowed_peak_memory(tmp_path):
     _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     assert peak < file_bytes / 2   # proves no whole-file load
+
+
+def test_splice_dropouts_printed_and_declicked(tmp_path, tone):
+    # dropouts zero spans in the rendered output, but with short fades so the
+    # edges don't click (no large sample-to-sample jump into/out of silence)
+    from audiopipe.splice import Splice
+    e = Segmenter("grid", 0.6, 0.0).process(_single(tone), _ctx(tmp_path))
+    out = Splice(join="cut", dropouts=0.9).process(e, _ctx(tmp_path, seed=3))
+    y, _ = sf.read(str(out.segments[0].source))
+    assert np.any(y == 0.0)                          # holes printed
+    # a hard zero on a 0.5-amp tone would jump ~0.5; a 3 ms fade keeps it small
+    assert np.max(np.abs(np.diff(y))) < 0.1
+    assert out.history[-1]["params"]["dropouts"] == 0.9

@@ -3,6 +3,7 @@ from dataclasses import replace
 from pathlib import Path
 import uuid
 import numpy as np
+import soundfile as sf
 from .segment import EDL, Segment
 from .stages.base import Context
 from . import io
@@ -10,6 +11,34 @@ from . import io
 
 def _fade_frames(fade: float, sr: int) -> int:
     return max(1, int((0.005 + fade * 0.095) * sr))
+
+
+def _print_dropouts(path: Path, amount: float, rng) -> None:
+    """Bake random short dropouts into the rendered file *in place* (tape oxide
+    shedding 'printed' at render time, so a tape_loop repeats the same holes).
+    amount 0..1 scales the count; each hole is ~10-50 ms. Each hole gets a short
+    (~3 ms) fade out/in at its edges so it doesn't click. Drawn from `rng`."""
+    sr, ch, n = io.info(path)
+    holes = []
+    for _ in range(int(amount * 12)):
+        hole = int(rng.uniform(0.01, 0.05) * sr)
+        holes.append((rng.randint(0, max(0, n - hole)), hole))
+    if not holes:
+        return
+    fade = max(1, int(0.003 * sr))
+    with sf.SoundFile(str(path), mode="r+") as f:
+        for start, hole in holes:
+            f_len = min(fade, hole // 2)
+            if f_len > 0:
+                ramp = np.linspace(1.0, 0.0, f_len, dtype="float32")[:, None]
+                f.seek(start); head = f.read(f_len, dtype="float32", always_2d=True)
+                f.seek(start); f.write(head * ramp)                          # fade out
+                f.seek(start + hole - f_len); tail = f.read(f_len, dtype="float32", always_2d=True)
+                f.seek(start + hole - f_len); f.write(tail * ramp[::-1])     # fade in
+            mid = hole - 2 * f_len
+            if mid > 0:
+                f.seek(start + f_len)
+                f.write(np.zeros((mid, ch), dtype="float32"))
 
 
 def _snap_zerocross(source: Path, frame: int, channels: str, search: int = 64) -> int:
@@ -77,16 +106,21 @@ def _fade(n: int, rising: bool) -> np.ndarray:
 class Splice:
     name = "splice"
 
-    def __init__(self, join: str = "crossfade", fade: float = 0.2):
+    def __init__(self, join: str = "cut", fade: float = 0.0, dropouts: float = 0.0):
         self.join = join
         self.fade = float(fade)
+        self.dropouts = float(dropouts)
 
     def process(self, edl: EDL, ctx: Context) -> EDL:
         out_path = ctx.scratch_dir / f"splice_{uuid.uuid4().hex[:8]}.wav"
         render_edl(edl, out_path, join=self.join, fade=self.fade, channels=ctx.channels)
+        if self.dropouts > 0:
+            _print_dropouts(out_path, self.dropouts, ctx.rng)
         sr, ch, n = io.info(out_path)
+        ops = (f"splice:{self.join}",) + (("dropouts",) if self.dropouts > 0 else ())
         rendered = Segment(source=out_path, start_frame=0, end_frame=n,
-                           sample_rate=sr, channels=ch, ops=(f"splice:{self.join}",))
+                           sample_rate=sr, channels=ch, ops=ops)
         edl.segments = [rendered]
-        edl.record(self.name, {"join": self.join, "fade": self.fade})
+        edl.record(self.name, {"join": self.join, "fade": self.fade,
+                               "dropouts": self.dropouts})
         return edl

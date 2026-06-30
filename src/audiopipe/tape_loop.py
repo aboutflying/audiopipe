@@ -7,13 +7,14 @@ from .segment import EDL, Segment
 from .stages.base import Context
 from . import io
 from .splice import render_edl
-from .degrade import degrade, add_dropouts, add_hiss, add_flutter
+from .degrade import degrade, add_hiss, add_flutter
 
 
-def _character(audio, sr, ctx, *, hiss, dropouts, flutter):
-    """Apply the base tape character (every pass, including cycles:1): dropouts,
-    flutter, then hiss last so noise isn't itself muffled/dropped."""
-    audio = add_dropouts(audio, sr, dropouts, ctx.rng)
+def _character(audio, sr, ctx, *, speed, flutter, hiss):
+    """Apply the base tape character (every pass, including cycles:1): steady
+    varispeed, then wow/flutter, then hiss last so noise isn't itself warped."""
+    if abs(speed - 1.0) >= 1e-6:
+        audio = io.resample_to(audio, max(1, round(len(audio) / speed)))
     audio = add_flutter(audio, sr, flutter, ctx.rng)
     audio = add_hiss(audio, hiss, ctx.rng)
     return audio
@@ -51,8 +52,8 @@ def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, out_path: Path) -> None:
     concatenate with the seam join."""
     cycles = int(cfg["cycles"])
     hiss = float(cfg["hiss"])
-    dropouts = float(cfg["dropouts"])
     flutter = float(cfg["flutter"])
+    speed = float(cfg["speed"])
     loop_path = _loop_content(edl, ctx)
 
     sr, ch, full_n = io.info(loop_path)
@@ -61,10 +62,10 @@ def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, out_path: Path) -> None:
 
     # cycles<=1: a single finishing tape pass (character only, no wear ramp).
     if cycles <= 1:
-        cur = _character(original, sr, ctx, hiss=hiss, dropouts=dropouts, flutter=flutter)
+        cur = _character(original, sr, ctx, speed=speed, flutter=flutter, hiss=hiss)
         sf.write(str(out_path), cur, sr)
-        edl.record("tape_loop", {"cycles": 1, "hiss": hiss, "dropouts": dropouts,
-                                 "flutter": flutter, "region": cfg.get("region")})
+        edl.record("tape_loop", {"cycles": 1, "speed": speed, "flutter": flutter,
+                                 "hiss": hiss, "region": cfg.get("region")})
         return
 
     wear_amount = float(cfg["wear"])
@@ -83,7 +84,7 @@ def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, out_path: Path) -> None:
             prev = worn
         else:
             worn = degrade(original, sr, wear, ctx.rng)
-        cur = _character(worn, sr, ctx, hiss=hiss, dropouts=dropouts, flutter=flutter)
+        cur = _character(worn, sr, ctx, speed=speed, flutter=flutter, hiss=hiss)
         cpath = ctx.scratch_dir / f"cycle_{c:03d}.wav"
         sf.write(str(cpath), cur, sr)
         cycle_segs.append(Segment(source=cpath, start_frame=0, end_frame=len(cur),
@@ -95,6 +96,6 @@ def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, out_path: Path) -> None:
     render_edl(seam_edl, out_path, join=cfg["seam"], fade=0.2, channels="keep")
     edl.record("tape_loop", {"cycles": cycles, "wear": wear_amount,
                              "feedback": feedback, "seam": cfg["seam"],
-                             "hiss": hiss, "dropouts": dropouts, "flutter": flutter,
+                             "speed": speed, "flutter": flutter, "hiss": hiss,
                              "region": cfg.get("region"),
                              "per_cycle_wear": per_cycle_wear})
