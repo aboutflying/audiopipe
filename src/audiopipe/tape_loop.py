@@ -20,17 +20,6 @@ def _character(audio, sr, ctx, *, speed, flutter, hiss):
     return audio
 
 
-def _loop_content(edl: EDL, ctx: Context) -> Path:
-    """The chain's single rendered loop file. Render it if the chain didn't end
-    in splice (so a loop file always exists before degrade)."""
-    segs = edl.segments
-    if len(segs) == 1 and ctx.scratch_dir in Path(segs[0].source).parents:
-        return Path(segs[0].source)
-    path = ctx.scratch_dir / "loop.wav"
-    render_edl(edl, path, join="cut", fade=0.0, channels=ctx.channels)
-    return path
-
-
 def _region_frames(region, n: int, sr: int) -> tuple[int, int]:
     """Resolve a [start_sec, end_sec] window of the rendered loop to frame
     bounds. None loops the whole thing."""
@@ -46,19 +35,18 @@ def _region_frames(region, n: int, sr: int) -> tuple[int, int]:
     return start, end
 
 
-def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, out_path: Path) -> None:
-    """Post-chain: build `cycles` copies of the rendered loop (optionally just a
-    `region` of it), degrade each by its wear (render-once, degrade-per-cycle),
-    concatenate with the seam join."""
+def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, in_path: Path, out_path: Path) -> None:
+    """The tape stage: apply physical character (hiss/wear/flutter/varispeed) to
+    the rendered master at `in_path`, optionally looping `cycles` copies of a
+    `region` of it (render-once, degrade-per-cycle). Writes out_path."""
     cycles = int(cfg["cycles"])
     hiss = float(cfg["hiss"])
     flutter = float(cfg["flutter"])
     speed = float(cfg["speed"])
-    loop_path = _loop_content(edl, ctx)
 
-    sr, ch, full_n = io.info(loop_path)
+    sr, ch, full_n = io.info(in_path)
     start, end = _region_frames(cfg.get("region"), full_n, sr)
-    original = io.read_frames(loop_path, start, end - start, "keep")
+    original = io.read_frames(in_path, start, end - start, "keep")
 
     # cycles<=1: a single finishing tape pass (character only, no wear ramp).
     if cycles <= 1:

@@ -31,20 +31,24 @@ def render_one(input_path: Path, config_path: Path, out_path: Path,
 
         edl = run_chain(edl, stages, ctx)
 
-        # tape_loop: post-chain construct. Runs to loop+disintegrate (cycles>1)
-        # or as a single finishing tape pass when any character dial is set.
-        tl = cfg["tape_loop"]
-        if tl["cycles"] > 1 or tl["hiss"] > 0 or tl["flutter"] > 0 or tl["speed"] != 1.0:
-            from .tape_loop import run_tape_loop
-            run_tape_loop(edl, ctx, tl, out_path)
-        else:
-            _finalize(edl, ctx, out_path, scratch_dir)
+        # Post-chain signal flow, in order:
+        #   1. render the chain to one "master" file (the clean collage)
+        #   2. OTT master compression (whole-output)
+        #   3. tape: physical medium (hiss/wear/flutter/loop) applied LAST, so
+        #      tape character is never fed into OTT.
+        master = _render_master(edl, ctx, scratch_dir)
 
-        # whole-output OTT (master position): runs on the final render
         ott = cfg["ott"]
         if ott["where"] == "output" and ott["depth"] > 0:
             from .ott import ott_file
-            ott_file(out_path, ott["depth"])
+            ott_file(master, ott["depth"])
+
+        tl = cfg["tape_loop"]
+        if tl["cycles"] > 1 or tl["hiss"] > 0 or tl["flutter"] > 0 or tl["speed"] != 1.0:
+            from .tape_loop import run_tape_loop
+            run_tape_loop(edl, ctx, tl, master, out_path)
+        else:
+            shutil.copy2(master, out_path)
 
         sidecar.write_success(out_path, input_path=input_path, config=cfg, edl=edl)
         return out_path, edl, cfg
@@ -54,14 +58,16 @@ def render_one(input_path: Path, config_path: Path, out_path: Path,
         shutil.rmtree(scratch_dir, ignore_errors=True)
 
 
-def _finalize(edl: EDL, ctx, out_path: Path, scratch_dir: Path) -> None:
-    """Produce the output wav. If the chain already rendered to scratch (splice),
-    copy that file; otherwise concatenate segments with a hard cut."""
+def _render_master(edl: EDL, ctx, scratch_dir: Path) -> Path:
+    """Render the chain output to a single scratch file (the clean pre-tape mix).
+    If splice already rendered to a scratch file, reuse it; else cut-concatenate."""
     segs = edl.segments
-    if len(segs) == 1 and scratch_dir in Path(segs[0].source).parents:
-        shutil.copy2(segs[0].source, out_path)
-    else:
-        render_edl(edl, out_path, join="cut", fade=0.0, channels=ctx.channels)
+    if len(segs) == 1 and segs[0].audio is None \
+            and scratch_dir in Path(segs[0].source).parents:
+        return Path(segs[0].source)
+    master = scratch_dir / "master.wav"
+    render_edl(edl, master, join="cut", fade=0.0, channels=ctx.channels)
+    return master
 
 
 def process_inbox(work_root: Path, config_path: Path) -> list[Path]:

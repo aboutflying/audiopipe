@@ -8,10 +8,10 @@ grain: {mode: onset}   # gentle grains, slight timing drift
 fx:    {drive: 0.3, tone: 0.65, chorus: 0.5, reverb: 0.8}  # saturation, dull highs, faint age/space
 splice: {join: crossfade, fade: 0.15, dropouts: 0.2}   # dropouts printed into the render (repeat each loop)
 # Finishing tape pass on the rendered output: hiss, wow/flutter, varispeed, wear.
-tape_loop: {seam: crossfade, region: [55, 57], cycles: 16, hiss: 0.10, flutter: 0.6, speed: 0.66, wear: 0.7, feedback: true}
+tape_loop: {seam: crossfade, region: [11,15], cycles: 16, hiss: 0.10, flutter: 0.6, speed: 0.66, wear: 0.7, feedback: true}
 ott: {depth: 0.5, where: output}
 rearrange:
   feel: sort              # as-is | shuffle | reverse | sort   (as-is = transparent)
   scramble: 0.0            # shuffle: how far segments stray from order
   drop: 0.0                # fraction of segments discarded (0 = keep all)
-  sort_by: duration      # sort: brightness | loudness | duration
+  sort_by: loudness      # sort: brightness | loudness | duration

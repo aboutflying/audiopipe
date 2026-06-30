@@ -130,11 +130,10 @@ def test_disintegrates_across_cycles(tmp_path):
     scratch.mkdir()
     loop = scratch / "loop.wav"
     splice.render_edl(edl, loop, join="cut", fade=0.0, channels="sum")
-    e = EDL(segments=[Segment(loop, 0, io.frames_of(loop), 16000, 1)],
-            seed=42, sample_rate=16000)
+    e = EDL(segments=[], seed=42, sample_rate=16000)
     run_tape_loop(e, _ctx(scratch), {"cycles": 8, "wear": 0.6,
                   "feedback": False, "seam": "cut", "hiss": 0.0,
-                  "flutter": 0.0, "speed": 1.0}, tmp_path / "o.wav")
+                  "flutter": 0.0, "speed": 1.0}, loop, tmp_path / "o.wav")
     cyc = sorted(e.segments, key=lambda s: s.cycle)
     first, _ = sf.read(str(cyc[0].source))
     last, _ = sf.read(str(cyc[-1].source))
@@ -149,12 +148,11 @@ def test_tape_loop_region_windows_content(tmp_path):
     splice.render_edl(edl, loop, join="cut", fade=0.0, channels="sum")
 
     def run(region):
-        e = EDL(segments=[Segment(loop, 0, io.frames_of(loop), 16000, 1)],
-                seed=42, sample_rate=16000)
+        e = EDL(segments=[], seed=42, sample_rate=16000)
         cfg = {"cycles": 3, "wear": 0.5, "feedback": False, "seam": "cut",
                "region": region, "hiss": 0.0, "flutter": 0.0, "speed": 1.0}
         out = tmp_path / f"o_{region}.wav"
-        run_tape_loop(e, _ctx(scratch), cfg, out)
+        run_tape_loop(e, _ctx(scratch), cfg, loop, out)
         return io.frames_of(out)
 
     full = run(None)

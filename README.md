@@ -260,16 +260,17 @@ OTT-style multiband upward **and** downward compression: the signal is split
 into 3 bands, each band squashes what's loud *and* lifts what's quiet toward a
 depth-scaled threshold, with strong makeup and a soft-clipped output. The result
 is dense and loud (it raises RMS and crushes crest factor), and—being upward—it
-drags up reverb tails, room tone, and tape hiss.
+drags up reverb tails and room tone.
 
 - `depth` — `0` bypasses; higher = lower threshold, higher ratios, more makeup.
 - `where`:
   - `grain` — runs as a **chain stage**: each grain is slammed independently
     (pumpy, glitchy, on-brand for collage). List `ott` in `chain` where you want
     it, e.g. `chain: [grain, ott, splice]`.
-  - `output` — runs as a **master pass** on the final rendered file, *after*
-    `splice`/`tape_loop` (so it pumps the tape hiss too). Chain membership is
-    ignored in this mode; just set `where: output`.
+  - `output` — runs as a **master pass** on the rendered mix, after `splice` but
+    **before** the `tape_loop` stage, so the physical tape character (hiss, wear,
+    flutter) is *not* fed into the compressor. Chain membership is ignored in
+    this mode; just set `where: output`.
 
 ### `tape_loop` — finishing tape pass + render-once loop *(needs `analysis` extra)*
 
@@ -343,7 +344,7 @@ queue.py     the inbox/working/done/failed directory state machine
 storage/     StorageBackend protocol (local implemented; S3/Dropbox later)
 sidecar.py   the reproducibility record
 cli.py       `audiopipe run` / `audiopipe process`
-runner.py    orchestration: transcode -> chain -> tape_loop -> render -> sidecar
+runner.py    orchestration: transcode -> chain -> master render -> OTT -> tape -> sidecar
 ```
 
 ## Development
