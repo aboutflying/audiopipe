@@ -9,27 +9,64 @@ def _lowpass(audio: np.ndarray, sr: int, cutoff: float) -> np.ndarray:
     return sosfilt(sos, audio, axis=0).astype("float32")
 
 
-def degrade(audio: np.ndarray, sr: int, wear: float, rng) -> np.ndarray:
-    """Apply tape wear scaled by `wear` in [0,1]. wear 0 returns audio unchanged.
-    Lowpass roll-off + gain attenuation + random dropouts, all from `rng` so the
-    whole loop reproduces from the master seed."""
+def degrade(audio: np.ndarray, sr: int, wear: float, rng=None) -> np.ndarray:
+    """Tape wear scaled by `wear` in [0,1]: high-frequency roll-off + level loss.
+    wear 0 returns audio unchanged. This is the per-cycle disintegration; hiss,
+    dropouts, and flutter are separate dials applied on top."""
     if wear <= 0:
         return audio.astype("float32", copy=True)
     if audio.ndim == 1:
         audio = audio[:, None]
-    n = len(audio)
-
     # progressive dulling: full bandwidth at wear 0 -> ~1.5kHz at wear 1
     cutoff = sr / 2 * (1 - wear) + 1500 * wear
     out = _lowpass(audio, sr, cutoff)
+    out *= (1 - 0.5 * wear)          # level loss up to ~-6 dB
+    return out
 
-    # level loss up to -6 dB-ish
-    out *= (1 - 0.5 * wear)
 
-    # random dropouts: more, longer holes as wear climbs
-    n_drops = int(wear * 8)
-    hole = int(0.02 * sr)
-    for _ in range(n_drops):
+def add_dropouts(audio: np.ndarray, sr: int, amount: float, rng) -> np.ndarray:
+    """Random short signal dropouts (tape oxide shedding). amount 0..1 scales
+    how many holes; each is ~10-50 ms. Drawn from `rng` for reproducibility."""
+    if amount <= 0:
+        return audio
+    if audio.ndim == 1:
+        audio = audio[:, None]
+    out = audio.copy()
+    n = len(out)
+    for _ in range(int(amount * 12)):
+        hole = int(rng.uniform(0.01, 0.05) * sr)
         start = rng.randint(0, max(0, n - hole))
         out[start:start + hole] = 0.0
     return out
+
+
+def add_hiss(audio: np.ndarray, level: float, rng) -> np.ndarray:
+    """Additive tape noise floor. level 0..1 (level 1 ~= -34 dB). Seeded from
+    `rng` so the hiss reproduces from the master seed."""
+    if level <= 0:
+        return audio
+    if audio.ndim == 1:
+        audio = audio[:, None]
+    np_rng = np.random.default_rng(rng.randint(0, 2 ** 32 - 1))
+    noise = np_rng.standard_normal(audio.shape).astype("float32") * (0.02 * level)
+    return (audio + noise).astype("float32")
+
+
+def add_flutter(audio: np.ndarray, sr: int, amount: float, rng) -> np.ndarray:
+    """Wow & flutter on the whole buffer: a slow (wow) + fast (flutter) LFO warps
+    the playback timebase, so pitch drifts. amount 0..1 -> up to ~3% deviation.
+    Output length is unchanged. Phases drawn from `rng` for reproducibility."""
+    if amount <= 0:
+        return audio
+    if audio.ndim == 1:
+        audio = audio[:, None]
+    n = len(audio)
+    t = np.arange(n) / sr
+    ph_wow, ph_flutter = rng.uniform(0, 2 * np.pi), rng.uniform(0, 2 * np.pi)
+    lfo = 0.7 * np.sin(2 * np.pi * 0.6 * t + ph_wow) + 0.3 * np.sin(2 * np.pi * 6.0 * t + ph_flutter)
+    speed = 1 + (0.03 * amount) * lfo
+    pos = np.cumsum(speed)
+    pos = pos / pos[-1] * (n - 1)       # warped sample positions, normalized to span
+    xp = np.arange(n)
+    return np.stack([np.interp(pos, xp, audio[:, c]) for c in range(audio.shape[1])],
+                    axis=1).astype("float32")

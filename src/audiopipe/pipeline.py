@@ -35,7 +35,8 @@ DEFAULTS = {
     "fx": {"drive": 0.2, "tone": 0.3, "chorus": 0.0, "reverb": 0.25},
     "vari": {"reverse": 0.0, "speed": 1.0, "wobble": 0.0},
     "tape_loop": {"cycles": 1, "wear": 0.4, "feedback": False,
-                  "seam": "crossfade", "region": None},
+                  "seam": "crossfade", "region": None,
+                  "hiss": 0.0, "dropouts": 0.0, "flutter": 0.0},
 }
 
 

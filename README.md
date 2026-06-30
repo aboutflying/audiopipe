@@ -90,6 +90,7 @@ Re-running a failed file is safe.
 | `blown.yaml` | heavy distortion, drifted grains, hard-cut splices |
 | `underwater.yaml` | dark lowpass + chorus + big reverb, smeared joins |
 | `tape.yaml` | a short loop disintegrating over 6 tape cycles |
+| `oldtape.yaml` | worn playback: saturation, dull highs, hiss, dropouts, wow & flutter |
 
 Copy one and edit to taste — there is no default config file; the defaults
 below live in code and apply whenever a key is omitted.
@@ -237,30 +238,45 @@ stay reference-only). Only takes effect when `vari` is in `chain`.
 - `wobble` — randomizes each grain's speed by up to `±wobble`, for
   drifting tape-wobble pitch.
 
-### `tape_loop` — render-once, degrade-per-cycle *(needs `analysis` extra)*
+### `tape_loop` — finishing tape pass + render-once loop *(needs `analysis` extra)*
 
 ```yaml
 tape_loop:
-  cycles: 1                # 1 = off (plain single render)
-  wear: 0.4              # accumulated wear per cycle (0 = faithful repeats)
-  feedback: false         # false = f(cycle) [cheap]; true = iterate the op
+  cycles: 1                # 1 = single finishing pass; >1 = loop that disintegrates
+  wear: 0.4                # ramped roll-off + level loss across cycles (loop only)
+  feedback: false          # false = f(cycle) [cheap]; true = iterate the op
   seam: crossfade          # loop-point join: cut | zerocross | crossfade
   region: null             # null = whole output; [start_sec, end_sec] = a window
+  hiss: 0.0                # tape noise floor (every pass, incl. cycles:1)
+  dropouts: 0.0            # random short signal dropouts (oxide shedding)
+  flutter: 0.0             # wow & flutter (timebase warble) on the whole output
 ```
 
-A post-chain construct (not a `chain` entry). The chain renders the loop
-content **once**; then `cycles` copies are made and only a cheap *degrade*
-operator (lowpass roll-off, level loss, dropouts) runs per cycle, ramped by
-`wear × cycle / (cycles − 1)` — so cycle 0 is untouched and the last cycle is
-fully worn.
-- `cycles` — number of revolutions; `1` disables the loop entirely.
-- `wear` — how much wear accumulates by the final cycle.
-- `region` — which section of the rendered chain output to loop, in **seconds of
-  the spliced output**. `null` loops the whole thing; `[8.0, 12.0]` loops only
-  that 4-second window. Only that window is read, then cycled and degraded.
+A post-chain construct (not a `chain` entry) that applies **tape character** to
+the rendered output. It runs whenever `cycles > 1` **or** any character dial
+(`hiss`/`dropouts`/`flutter`) is set.
+
+Two roles:
+- **Finishing pass** (`cycles: 1`): one tape pass over the spliced output —
+  `hiss` + `dropouts` + `flutter`, no loop. This is the "old tape" use.
+- **Disintegrating loop** (`cycles > 1`): the chain renders the loop content
+  **once**, then `cycles` copies are made and a cheap *degrade* runs per cycle,
+  with `wear` ramped by `wear × cycle / (cycles − 1)` — cycle 0 clean, the last
+  fully worn. The character dials apply on every cycle on top of the wear ramp.
+
+Dials:
+- `cycles` — `1` = single finishing pass; `>1` = N revolutions that wear out.
+- `wear` — roll-off + level loss accumulated by the final cycle (loop only;
+  cycle 0 is always clean).
+- `hiss` — additive tape noise floor (`1` ≈ −34 dB). Applied every pass.
+- `dropouts` — how many brief (~10–50 ms) signal dropouts. Applied every pass.
+- `flutter` — wow & flutter: a slow + fast LFO warps the timebase so pitch
+  drifts (`vari.wobble` is the per-grain version; this is on the whole output).
+- `region` — which section of the rendered output to use, in **seconds of the
+  spliced output**. `null` = whole; `[8.0, 12.0]` = that 4-second window only.
 - `feedback` — `false` computes each cycle from the original (cheap, cycles
-  independent); `true` degrades the previous cycle's output (for self-feeding
-  effects like saturation).
+  independent); `true` degrades the previous cycle's output (self-feeding
+  saturation). Loop only.
 - `seam` — the join at the loop point, kept separate from `splice.join` so the
   loop can click while internal cuts stay smooth.
 

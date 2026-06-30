@@ -31,10 +31,12 @@ def render_one(input_path: Path, config_path: Path, out_path: Path,
 
         edl = run_chain(edl, stages, ctx)
 
-        # tape_loop (M3): post-chain construct, render-once then degrade per cycle.
-        if cfg["tape_loop"]["cycles"] > 1:
+        # tape_loop: post-chain construct. Runs to loop+disintegrate (cycles>1)
+        # or as a single finishing tape pass when any character dial is set.
+        tl = cfg["tape_loop"]
+        if tl["cycles"] > 1 or tl["hiss"] > 0 or tl["dropouts"] > 0 or tl["flutter"] > 0:
             from .tape_loop import run_tape_loop
-            run_tape_loop(edl, ctx, cfg["tape_loop"], out_path)
+            run_tape_loop(edl, ctx, tl, out_path)
         else:
             _finalize(edl, ctx, out_path, scratch_dir)
 
