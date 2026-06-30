@@ -16,25 +16,25 @@ from .segment import EDL
 # name -> (constructor, config section). A stage with no section takes no args.
 STAGES = {
     "passthrough": (Passthrough, None),
-    "slice": (Segmenter, "slice"),
-    "sequence": (Sequencer, "sequence"),
+    "grain": (Segmenter, "grain"),
+    "rearrange": (Sequencer, "rearrange"),
     "splice": (Splice, "splice"),
-    "dsp": (Dsp, "dsp"),
-    "warp": (Warp, "warp"),
+    "fx": (Dsp, "fx"),
+    "vari": (Warp, "vari"),
 }
 
 # Resolved defaults. Top-level and per-section keys are closed: unknown -> error.
 DEFAULTS = {
     "seed": 42,
     "source": {"channels": "sum", "sample_rate": "source"},
-    "chain": ["slice", "sequence", "splice"],
-    "slice": {"strategy": "grid", "amount": 0.6, "jitter": 0.3},
-    "sequence": {"feel": "shuffle", "strength": 0.7, "drop": 0.1,
-                 "sort_by": "brightness"},
-    "splice": {"join": "crossfade", "smear": 0.2},
-    "dsp": {"drive": 0.2, "filter": 0.3, "chorus": 0.0, "reverb": 0.25},
-    "warp": {"reverse": 0.0, "speed": 1.0, "speed_jitter": 0.0},
-    "tape_loop": {"cycles": 1, "evolve": 0.4, "recursive": False,
+    "chain": ["grain", "rearrange", "splice"],
+    "grain": {"mode": "grid", "density": 0.6, "drift": 0.3},
+    "rearrange": {"feel": "shuffle", "scramble": 0.7, "drop": 0.1,
+                  "sort_by": "brightness"},
+    "splice": {"join": "crossfade", "fade": 0.2},
+    "fx": {"drive": 0.2, "tone": 0.3, "chorus": 0.0, "reverb": 0.25},
+    "vari": {"reverse": 0.0, "speed": 1.0, "wobble": 0.0},
+    "tape_loop": {"cycles": 1, "wear": 0.4, "feedback": False,
                   "seam": "crossfade", "region": None},
 }
 

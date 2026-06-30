@@ -52,7 +52,7 @@ def test_onset_slicing_lands_on_clicks(tmp_path):
 def test_sort_monotonic_by_feature(tmp_path):
     sweep = write_sweep(tmp_path / "sweep.wav")
     edl = EDL.single(Path(sweep), io.frames_of(sweep), 16000, 1, seed=1)
-    edl = Segmenter("grid", amount=0.8, jitter=0.0).process(edl, _ctx(tmp_path))
+    edl = Segmenter("grid", density=0.8, drift=0.0).process(edl, _ctx(tmp_path))
     edl = Sequencer("sort", drop=0.0, sort_by="brightness").process(edl, _ctx(tmp_path))
     vals = [feature(s, "brightness") for s in edl.segments]
     assert vals == sorted(vals)              # monotonic
@@ -62,8 +62,8 @@ def test_sort_monotonic_by_feature(tmp_path):
 def _tape_cfg(tmp_path, cycles, recursive=False, seam="cut"):
     cfg = tmp_path / "p.yaml"
     cfg.write_text(yaml.safe_dump({
-        "chain": ["slice", "sequence", "splice"],
-        "tape_loop": {"cycles": cycles, "evolve": 0.6, "recursive": recursive,
+        "chain": ["grain", "rearrange", "splice"],
+        "tape_loop": {"cycles": cycles, "wear": 0.6, "feedback": recursive,
                       "seam": seam}}))
     return cfg
 
@@ -129,11 +129,11 @@ def test_disintegrates_across_cycles(tmp_path):
     scratch = tmp_path / "scr"
     scratch.mkdir()
     loop = scratch / "loop.wav"
-    splice.render_edl(edl, loop, join="cut", smear=0.0, channels="sum")
+    splice.render_edl(edl, loop, join="cut", fade=0.0, channels="sum")
     e = EDL(segments=[Segment(loop, 0, io.frames_of(loop), 16000, 1)],
             seed=42, sample_rate=16000)
-    run_tape_loop(e, _ctx(scratch), {"cycles": 8, "evolve": 0.6,
-                  "recursive": False, "seam": "cut"}, tmp_path / "o.wav")
+    run_tape_loop(e, _ctx(scratch), {"cycles": 8, "wear": 0.6,
+                  "feedback": False, "seam": "cut"}, tmp_path / "o.wav")
     cyc = sorted(e.segments, key=lambda s: s.cycle)
     first, _ = sf.read(str(cyc[0].source))
     last, _ = sf.read(str(cyc[-1].source))
@@ -145,12 +145,12 @@ def test_tape_loop_region_windows_content(tmp_path):
     edl = EDL.single(Path(sweep), io.frames_of(sweep), 16000, 1, seed=42)
     scratch = tmp_path / "scr"; scratch.mkdir()
     loop = scratch / "loop.wav"
-    splice.render_edl(edl, loop, join="cut", smear=0.0, channels="sum")
+    splice.render_edl(edl, loop, join="cut", fade=0.0, channels="sum")
 
     def run(region):
         e = EDL(segments=[Segment(loop, 0, io.frames_of(loop), 16000, 1)],
                 seed=42, sample_rate=16000)
-        cfg = {"cycles": 3, "evolve": 0.5, "recursive": False, "seam": "cut",
+        cfg = {"cycles": 3, "wear": 0.5, "feedback": False, "seam": "cut",
                "region": region}
         out = tmp_path / f"o_{region}.wav"
         run_tape_loop(e, _ctx(scratch), cfg, out)

@@ -17,7 +17,7 @@ def _loop_content(edl: EDL, ctx: Context) -> Path:
     if len(segs) == 1 and ctx.scratch_dir in Path(segs[0].source).parents:
         return Path(segs[0].source)
     path = ctx.scratch_dir / "loop.wav"
-    render_edl(edl, path, join="cut", smear=0.0, channels=ctx.channels)
+    render_edl(edl, path, join="cut", fade=0.0, channels=ctx.channels)
     return path
 
 
@@ -53,19 +53,19 @@ def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, out_path: Path) -> None:
         edl.record("tape_loop", {"cycles": 1, "region": cfg.get("region")})
         return
 
-    evolve = float(cfg["evolve"])
-    recursive = bool(cfg["recursive"])
+    wear_amount = float(cfg["wear"])
+    feedback = bool(cfg["feedback"])
     span = max(cycles - 1, 1)
 
     cycle_segs: list[Segment] = []
     prev = original
     per_cycle_wear = []
     for c in range(cycles):
-        wear = evolve * (c / span)
+        wear = wear_amount * (c / span)
         per_cycle_wear.append(wear)
-        if recursive:
+        if feedback:
             # cycle N degrades cycle N-1's output by one constant step
-            cur = prev.copy() if c == 0 else degrade(prev, sr, evolve / span, ctx.rng)
+            cur = prev.copy() if c == 0 else degrade(prev, sr, wear_amount / span, ctx.rng)
         else:
             cur = degrade(original, sr, wear, ctx.rng)
         prev = cur
@@ -77,8 +77,8 @@ def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, out_path: Path) -> None:
 
     edl.segments = cycle_segs
     seam_edl = EDL(segments=cycle_segs, seed=edl.seed, sample_rate=sr)
-    render_edl(seam_edl, out_path, join=cfg["seam"], smear=0.2, channels="keep")
-    edl.record("tape_loop", {"cycles": cycles, "evolve": evolve,
-                             "recursive": recursive, "seam": cfg["seam"],
+    render_edl(seam_edl, out_path, join=cfg["seam"], fade=0.2, channels="keep")
+    edl.record("tape_loop", {"cycles": cycles, "wear": wear_amount,
+                             "feedback": feedback, "seam": cfg["seam"],
                              "region": cfg.get("region"),
                              "per_cycle_wear": per_cycle_wear})

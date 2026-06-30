@@ -3,7 +3,7 @@ from dataclasses import replace
 import uuid
 from .segment import EDL, Segment
 from .stages.base import Context
-from .mapping import dsp_params
+from .mapping import fx_params
 from . import io
 
 
@@ -27,15 +27,15 @@ def _build_board(params: dict):
 class Dsp:
     """Sample-transforming stage: applies a pedalboard effect chain to each
     segment, writing rendered audio to scratch (segments become scratch-backed)."""
-    name = "dsp"
+    name = "fx"
 
-    def __init__(self, drive: float = 0.2, filter: float = 0.3,
+    def __init__(self, drive: float = 0.2, tone: float = 0.3,
                  chorus: float = 0.0, reverb: float = 0.25):
-        self.dials = {"drive": float(drive), "filter": float(filter),
+        self.dials = {"drive": float(drive), "tone": float(tone),
                       "chorus": float(chorus), "reverb": float(reverb)}
 
     def process(self, edl: EDL, ctx: Context) -> EDL:
-        params = dsp_params(self.dials)
+        params = fx_params(self.dials)
         if not params:
             edl.record(self.name, {**self.dials, "effects": []})
             return edl
@@ -50,7 +50,7 @@ class Dsp:
         return edl
 
     def _render(self, seg: Segment, board, ctx: Context) -> Segment | None:
-        path = ctx.scratch_dir / f"dsp_{uuid.uuid4().hex[:8]}.wav"
+        path = ctx.scratch_dir / f"fx_{uuid.uuid4().hex[:8]}.wav"
         writer = None
         total = 0
         first = True
@@ -65,4 +65,4 @@ class Dsp:
             return None
         writer.close()
         return replace(seg, source=path, start_frame=0, end_frame=total,
-                       ops=seg.ops + ("dsp",), seg_id=uuid.uuid4().hex[:8])
+                       ops=seg.ops + ("fx",), seg_id=uuid.uuid4().hex[:8])

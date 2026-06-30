@@ -28,15 +28,15 @@ def test_loader_rejects_unknown_key():
     with pytest.raises(ValueError, match="unknown config key"):
         resolve_config({"seed": 1, "nope": True})
     with pytest.raises(ValueError, match="unknown config key"):
-        resolve_config({"slice": {"bogus": 1}})
+        resolve_config({"grain": {"bogus": 1}})
 
 
 def test_loader_defaults_and_order():
-    cfg = resolve_config({"chain": ["sequence", "slice"]})
+    cfg = resolve_config({"chain": ["rearrange", "grain"]})
     assert cfg["seed"] == 42
-    assert cfg["slice"]["strategy"] == "grid"
+    assert cfg["grain"]["mode"] == "grid"
     stages = build_stages(cfg)
-    assert [s.name for s in stages] == ["sequence", "slice"]
+    assert [s.name for s in stages] == ["rearrange", "grain"]
 
 
 def test_queue_claim_atomic_idempotent(tmp_path, tone):

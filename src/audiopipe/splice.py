@@ -8,8 +8,8 @@ from .stages.base import Context
 from . import io
 
 
-def _smear_frames(smear: float, sr: int) -> int:
-    return max(1, int((0.005 + smear * 0.095) * sr))
+def _fade_frames(fade: float, sr: int) -> int:
+    return max(1, int((0.005 + fade * 0.095) * sr))
 
 
 def _snap_zerocross(source: Path, frame: int, channels: str, search: int = 64) -> int:
@@ -27,7 +27,7 @@ def _snap_zerocross(source: Path, frame: int, channels: str, search: int = 64) -
     return int(cand[np.argmin(np.abs(cand - frame))])
 
 
-def render_edl(edl: EDL, out_path: Path, *, join: str, smear: float, channels: str) -> None:
+def render_edl(edl: EDL, out_path: Path, *, join: str, fade: float, channels: str) -> None:
     """Materialize the EDL to one continuous wav. cut/zerocross stream block by
     block (safe on whole-file segments); crossfade reads per grain."""
     segs = edl.segments
@@ -35,7 +35,7 @@ def render_edl(edl: EDL, out_path: Path, *, join: str, smear: float, channels: s
     out_ch = 1 if channels in ("sum", "left") else (segs[0].channels if segs else 1)
     with io.BlockWriter(out_path, sr, out_ch) as w:
         if join == "crossfade":
-            _render_crossfade(segs, w, channels, _smear_frames(smear, sr))
+            _render_crossfade(segs, w, channels, _fade_frames(fade, sr))
         else:
             for seg in segs:
                 s, e = seg.start_frame, seg.end_frame
@@ -77,16 +77,16 @@ def _fade(n: int, rising: bool) -> np.ndarray:
 class Splice:
     name = "splice"
 
-    def __init__(self, join: str = "crossfade", smear: float = 0.2):
+    def __init__(self, join: str = "crossfade", fade: float = 0.2):
         self.join = join
-        self.smear = float(smear)
+        self.fade = float(fade)
 
     def process(self, edl: EDL, ctx: Context) -> EDL:
         out_path = ctx.scratch_dir / f"splice_{uuid.uuid4().hex[:8]}.wav"
-        render_edl(edl, out_path, join=self.join, smear=self.smear, channels=ctx.channels)
+        render_edl(edl, out_path, join=self.join, fade=self.fade, channels=ctx.channels)
         sr, ch, n = io.info(out_path)
         rendered = Segment(source=out_path, start_frame=0, end_frame=n,
                            sample_rate=sr, channels=ch, ops=(f"splice:{self.join}",))
         edl.segments = [rendered]
-        edl.record(self.name, {"join": self.join, "smear": self.smear})
+        edl.record(self.name, {"join": self.join, "fade": self.fade})
         return edl

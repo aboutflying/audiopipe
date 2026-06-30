@@ -1,7 +1,7 @@
 seed: 42
 source: {channels: sum}
-chain: [slice, dsp, sequence, splice]
-slice: {strategy: grid, amount: 0.5, jitter: 0.2}
-dsp: {drive: 0.0, filter: 0.92, chorus: 0.6, reverb: 0.75}
-sequence: {feel: shuffle, strength: 0.5, drop: 0.1}
-splice: {join: crossfade, smear: 0.6}
+chain: [grain, fx, rearrange, splice]
+grain: {mode: grid, density: 0.5, drift: 0.2}
+fx: {drive: 0.0, tone: 0.92, chorus: 0.6, reverb: 0.75}
+rearrange: {feel: shuffle, scramble: 0.5, drop: 0.1}
+splice: {join: crossfade, fade: 0.6}

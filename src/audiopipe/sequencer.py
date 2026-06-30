@@ -4,12 +4,12 @@ from .stages.base import Context
 
 
 class Sequencer:
-    name = "sequence"
+    name = "rearrange"
 
-    def __init__(self, feel: str = "shuffle", strength: float = 0.7,
+    def __init__(self, feel: str = "shuffle", scramble: float = 0.7,
                  drop: float = 0.1, sort_by: str = "brightness"):
         self.feel = feel
-        self.strength = float(strength)
+        self.scramble = float(scramble)
         self.drop = float(drop)
         self.sort_by = sort_by  # used by feel: sort (M3)
 
@@ -26,7 +26,7 @@ class Sequencer:
             key = feature_key(self.sort_by)
             segs.sort(key=lambda s: feature(s, key))
             segs = segs[k:]
-            segs = [s.with_op(f"seq:sort:{key}") for s in segs]
+            segs = [s.with_op(f"rearrange:sort:{key}") for s in segs]
             edl.segments = segs
             edl.record(self.name, {"feel": "sort", "sort_by": self.sort_by,
                                    "drop": self.drop})
@@ -42,18 +42,18 @@ class Sequencer:
         elif self.feel == "reverse":
             segs.reverse()
         elif self.feel == "shuffle":
-            # key = index + strength*N*noise. strength 0 keeps order; higher
-            # strength lets segments stray further from their slot.
+            # key = index + scramble*N*noise. scramble 0 keeps order; higher
+            # scramble lets segments stray further from their slot.
             m = len(segs)
-            jitter = [(i + self.strength * m * ctx.rng.uniform(-1, 1), s)
+            spread = [(i + self.scramble * m * ctx.rng.uniform(-1, 1), s)
                       for i, s in enumerate(segs)]
-            jitter.sort(key=lambda t: t[0])
-            segs = [s for _, s in jitter]
+            spread.sort(key=lambda t: t[0])
+            segs = [s for _, s in spread]
         else:
-            raise ValueError(f"unknown sequence feel {self.feel!r}")
+            raise ValueError(f"unknown rearrange feel {self.feel!r}")
 
-        segs = [s.with_op(f"seq:{self.feel}") for s in segs]
+        segs = [s.with_op(f"rearrange:{self.feel}") for s in segs]
         edl.segments = segs
-        edl.record(self.name, {"feel": self.feel, "strength": self.strength,
+        edl.record(self.name, {"feel": self.feel, "scramble": self.scramble,
                                "drop": self.drop})
         return edl

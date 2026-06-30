@@ -53,7 +53,7 @@ def _finalize(edl: EDL, ctx, out_path: Path, scratch_dir: Path) -> None:
     if len(segs) == 1 and scratch_dir in Path(segs[0].source).parents:
         shutil.copy2(segs[0].source, out_path)
     else:
-        render_edl(edl, out_path, join="cut", smear=0.0, channels=ctx.channels)
+        render_edl(edl, out_path, join="cut", fade=0.0, channels=ctx.channels)
 
 
 def process_inbox(work_root: Path, config_path: Path) -> list[Path]:

@@ -50,7 +50,7 @@ def test_speed_down_doubles_length(tmp_path, tone):
 def test_identity_is_reference_only(tmp_path, tone):
     edl = _single(tone)
     src = edl.segments[0].source
-    out = Warp(reverse=0.0, speed=1.0, speed_jitter=0.0).process(edl, _ctx(tmp_path))
+    out = Warp(reverse=0.0, speed=1.0, wobble=0.0).process(edl, _ctx(tmp_path))
     assert out.segments[0].source == src          # untouched, no scratch render
 
 
@@ -59,7 +59,7 @@ def test_partial_reverse_deterministic(tmp_path):
 
     def run(dest):
         e = Segmenter("grid", 0.8, 0.0).process(_single(tone), _ctx(dest, seed=1))
-        e = Warp(reverse=0.5, speed_jitter=0.2).process(e, _ctx(dest, seed=7))
+        e = Warp(reverse=0.5, wobble=0.2).process(e, _ctx(dest, seed=7))
         return [s.n_frames for s in e.segments], sum("rev" in s.ops for s in e.segments)
 
     a = run(tmp_path / "a")
@@ -72,8 +72,8 @@ def test_warp_in_chain_via_cli(tmp_path):
     tone = write_tone(tmp_path / "in.wav", seconds=4.0)
     cfg = tmp_path / "p.yaml"
     cfg.write_text(yaml.safe_dump({
-        "chain": ["slice", "warp", "sequence", "splice"],
-        "warp": {"reverse": 0.4, "speed": 1.3, "speed_jitter": 0.1}}))
+        "chain": ["grain", "vari", "rearrange", "splice"],
+        "vari": {"reverse": 0.4, "speed": 1.3, "wobble": 0.1}}))
     out = tmp_path / "out.wav"
     render_one(tone, cfg, out, tmp_path / "scratch")
     assert out.exists() and io.frames_of(out) > 0
