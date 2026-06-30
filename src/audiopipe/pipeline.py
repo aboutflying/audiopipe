@@ -11,6 +11,7 @@ from .sequencer import Sequencer
 from .splice import Splice
 from .dsp import Dsp
 from .warp import Warp
+from .ott import Ott
 from .segment import EDL
 
 # name -> (constructor, config section). A stage with no section takes no args.
@@ -21,6 +22,7 @@ STAGES = {
     "splice": (Splice, "splice"),
     "fx": (Dsp, "fx"),
     "vari": (Warp, "vari"),
+    "ott": (Ott, "ott"),
 }
 
 # Resolved defaults. Top-level and per-section keys are closed: unknown -> error.
@@ -37,6 +39,7 @@ DEFAULTS = {
     "splice": {"join": "cut", "fade": 0.0, "dropouts": 0.0},
     "fx": {"drive": 0.0, "tone": 0.0, "chorus": 0.0, "reverb": 0.0},
     "vari": {"reverse": 0.0, "speed": 1.0, "wobble": 0.0},
+    "ott": {"depth": 0.0, "where": "grain"},
     "tape_loop": {"cycles": 1, "wear": 0.0, "feedback": False,
                   "seam": "cut", "region": None,
                   "hiss": 0.0, "flutter": 0.0, "speed": 1.0},

@@ -28,7 +28,7 @@ Dependency tiers (install only what you use):
 | Extra | Pulls in | Needed for |
 |-------|----------|------------|
 | *(core)* | `soundfile`, `numpy`, `pyyaml` | grain / rearrange / splice |
-| `analysis` | `librosa`, `scipy` | `onset`/`silence` slicing, `feel: sort`, tape-loop degrade |
+| `analysis` | `librosa`, `scipy` | `onset`/`silence` slicing, `feel: sort`, tape-loop degrade, `ott` |
 | `fx` | `pedalboard` | the `fx` stage |
 
 **M4A / AAC input** (e.g. `.m4a`) isn't decodable by libsndfile. On macOS,
@@ -134,7 +134,7 @@ chain:
 
 **Order is the composition.** Each name must be a registered stage; a stage
 absent from the list is skipped. Available: `grain`, `rearrange`, `splice`,
-`fx`, `vari`, `passthrough`. Reordering needs no code change. Typical: put `fx`
+`fx`, `vari`, `ott`, `passthrough`. Reordering needs no code change. Typical: put `fx`
 anywhere (`grain -> fx -> rearrange -> splice` effects each grain;
 `... -> splice -> fx`… isn't possible since splice ends the chain — `fx`
 before `splice` to colour grains, after `grain` to colour the raw cuts).
@@ -247,6 +247,29 @@ stay reference-only). Only takes effect when `vari` is in `chain`.
   machine (it resamples; it does not pitch-preserve time-stretch).
 - `wobble` — randomizes each grain's speed by up to `±wobble`, for
   drifting tape-wobble pitch.
+
+### `ott` — extreme multiband compression *(needs `analysis` extra)*
+
+```yaml
+ott:
+  depth: 0.0               # 0 = bypass; toward 1 = slammed wall-of-sound
+  where: grain             # grain (per-grain, in the chain) | output (master pass)
+```
+
+OTT-style multiband upward **and** downward compression: the signal is split
+into 3 bands, each band squashes what's loud *and* lifts what's quiet toward a
+depth-scaled threshold, with strong makeup and a soft-clipped output. The result
+is dense and loud (it raises RMS and crushes crest factor), and—being upward—it
+drags up reverb tails, room tone, and tape hiss.
+
+- `depth` — `0` bypasses; higher = lower threshold, higher ratios, more makeup.
+- `where`:
+  - `grain` — runs as a **chain stage**: each grain is slammed independently
+    (pumpy, glitchy, on-brand for collage). List `ott` in `chain` where you want
+    it, e.g. `chain: [grain, ott, splice]`.
+  - `output` — runs as a **master pass** on the final rendered file, *after*
+    `splice`/`tape_loop` (so it pumps the tape hiss too). Chain membership is
+    ignored in this mode; just set `where: output`.
 
 ### `tape_loop` — finishing tape pass + render-once loop *(needs `analysis` extra)*
 

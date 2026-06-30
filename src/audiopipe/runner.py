@@ -40,6 +40,12 @@ def render_one(input_path: Path, config_path: Path, out_path: Path,
         else:
             _finalize(edl, ctx, out_path, scratch_dir)
 
+        # whole-output OTT (master position): runs on the final render
+        ott = cfg["ott"]
+        if ott["where"] == "output" and ott["depth"] > 0:
+            from .ott import ott_file
+            ott_file(out_path, ott["depth"])
+
         sidecar.write_success(out_path, input_path=input_path, config=cfg, edl=edl)
         return out_path, edl, cfg
     finally:

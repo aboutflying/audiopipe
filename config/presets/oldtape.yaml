@@ -5,7 +5,7 @@ seed: 42
 source: {channels: keep}            # most old tape is effectively mono
 chain: [grain, fx, splice]         # no rearrange -> timeline preserved
 grain: {mode: onset}   # gentle grains, slight timing drift
-fx:    {drive: 0.3, tone: 0.65, chorus: 0.1, reverb: 0.20}  # saturation, dull highs, faint age/space
+fx:    {drive: 0.3, tone: 0.65, chorus: 0.5, reverb: 0.30}  # saturation, dull highs, faint age/space
 splice: {join: crossfade, fade: 0.15, dropouts: 0.2}   # dropouts printed into the render (repeat each loop)
 # Finishing tape pass on the rendered output: hiss, wow/flutter, varispeed, wear.
-tape_loop: {seam: crossfade, region: [30, 40], cycles: 8, hiss: 0.15, flutter: 0.4, speed: 1.0, wear: 0.4, feedback: true}
+tape_loop: {seam: cut, region: [40, 46], cycles: 8, hiss: 0.15, flutter: 0.4, speed: 0.66, wear: 0.4, feedback: true}
