@@ -28,8 +28,7 @@ def test_reverse_flips_audio(tmp_path, tone):
     edl = _single(tone)
     dry = io.read_frames(Path(tone), 0, edl.segments[0].n_frames, "sum")
     out = Warp(reverse=1.0).process(edl, _ctx(tmp_path))
-    wet = io.read_frames(out.segments[0].source, 0, out.segments[0].n_frames, "sum")
-    assert np.allclose(wet, dry[::-1], atol=1e-4)
+    assert np.allclose(out.segments[0].audio, dry[::-1], atol=1e-4)
     assert "rev" in out.segments[0].ops
 
 

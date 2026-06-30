@@ -38,7 +38,7 @@ class Warp:
         if not do_reverse and abs(speed - 1.0) < 1e-6:
             return seg                          # untouched: stay reference-only
 
-        audio = io.read_frames(seg.source, seg.start_frame, seg.n_frames, ctx.channels)
+        audio = io.materialize(seg, ctx.channels)
         if len(audio) == 0:
             return None
         ops = []
@@ -49,8 +49,5 @@ class Warp:
             audio = io.resample_to(audio, max(1, round(len(audio) / speed)))
             ops.append(f"speed{speed:.2f}")
 
-        path = ctx.scratch_dir / f"vari_{uuid.uuid4().hex[:8]}.wav"
-        with io.BlockWriter(path, seg.sample_rate, audio.shape[1]) as w:
-            w.write(audio)
-        return replace(seg, source=path, start_frame=0, end_frame=len(audio),
-                       ops=seg.ops + tuple(ops), seg_id=uuid.uuid4().hex[:8])
+        return replace(seg, start_frame=0, end_frame=len(audio),
+                       ops=seg.ops + tuple(ops), seg_id=uuid.uuid4().hex[:8], audio=audio)

@@ -1,5 +1,4 @@
 from __future__ import annotations
-from dataclasses import asdict
 from pathlib import Path
 import hashlib
 import json
@@ -19,9 +18,11 @@ def sha256(path: Path) -> str:
 
 
 def _seg_dict(seg) -> dict:
-    d = asdict(seg)
-    d["source"] = str(seg.source)
-    return d
+    # built explicitly (not asdict) to avoid deep-copying the in-memory audio buffer
+    return {"source": str(seg.source), "start_frame": seg.start_frame,
+            "end_frame": seg.end_frame, "sample_rate": seg.sample_rate,
+            "channels": seg.channels, "ops": list(seg.ops), "cycle": seg.cycle,
+            "seg_id": seg.seg_id}
 
 
 def _edl_dict(edl: EDL) -> dict:

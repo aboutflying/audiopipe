@@ -7,7 +7,7 @@ from .mapping import fx_params
 from . import io
 
 
-def _build_board(params: dict):
+def _build_board(params: dict, sr: int):
     """Construct a Pedalboard from concrete params. Imported lazily so pedalboard
     stays an optional M4 dependency, not required to run M1-M3 chains."""
     import pedalboard as pb
@@ -15,7 +15,8 @@ def _build_board(params: dict):
     if "drive_db" in params:
         fx.append(pb.Distortion(drive_db=params["drive_db"]))
     if "cutoff_hz" in params:
-        fx.append(pb.LowpassFilter(cutoff_frequency_hz=params["cutoff_hz"]))
+        cutoff = min(params["cutoff_hz"], sr / 2 * 0.95)   # keep below Nyquist (filter blows up otherwise)
+        fx.append(pb.LowpassFilter(cutoff_frequency_hz=cutoff))
     if "chorus_mix" in params:
         fx.append(pb.Chorus(mix=params["chorus_mix"]))
     if "reverb_room" in params:
@@ -39,7 +40,7 @@ class Dsp:
         if not params:
             edl.record(self.name, {**self.dials, "effects": []})
             return edl
-        board = _build_board(params)
+        board = _build_board(params, edl.sample_rate)
         out: list[Segment] = []
         for seg in edl.segments:
             rendered = self._render(seg, board, ctx)
@@ -50,19 +51,9 @@ class Dsp:
         return edl
 
     def _render(self, seg: Segment, board, ctx: Context) -> Segment | None:
-        path = ctx.scratch_dir / f"fx_{uuid.uuid4().hex[:8]}.wav"
-        writer = None
-        total = 0
-        first = True
-        for block in io.read_window(seg.source, seg.start_frame, seg.n_frames, channels=ctx.channels):
-            y = board(block, seg.sample_rate, reset=first)  # reset state per grain
-            first = False
-            if writer is None:
-                writer = io.BlockWriter(path, seg.sample_rate, y.shape[1])
-            writer.write(y)
-            total += len(y)
-        if writer is None:
+        audio = io.materialize(seg, ctx.channels)
+        if len(audio) == 0:
             return None
-        writer.close()
-        return replace(seg, source=path, start_frame=0, end_frame=total,
-                       ops=seg.ops + ("fx",), seg_id=uuid.uuid4().hex[:8])
+        out = board(audio, seg.sample_rate, reset=True)
+        return replace(seg, start_frame=0, end_frame=len(out),
+                       ops=seg.ops + ("fx",), seg_id=uuid.uuid4().hex[:8], audio=out)

@@ -56,7 +56,7 @@ def test_ott_per_grain_stage(tmp_path, tone):
     e = Segmenter("grid", 0.6, 0.0).process(edl, _ctx(tmp_path))
     out = Ott(depth=0.7, where="grain").process(e, _ctx(tmp_path))
     assert all("ott" in s.ops for s in out.segments)          # every grain slammed
-    assert all(tmp_path in Path(s.source).parents for s in out.segments)  # scratch-backed
+    assert all(s.audio is not None for s in out.segments)     # rendered in-memory
 
 
 def test_ott_output_where_is_noop_in_chain(tmp_path, tone):

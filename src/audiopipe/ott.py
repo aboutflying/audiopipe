@@ -91,12 +91,9 @@ class Ott:
         return edl
 
     def _render(self, seg: Segment, ctx: Context) -> Segment | None:
-        audio = io.read_frames(seg.source, seg.start_frame, seg.n_frames, ctx.channels)
+        audio = io.materialize(seg, ctx.channels)
         if len(audio) == 0:
             return None
         out = ott_process(audio, seg.sample_rate, self.depth)
-        path = ctx.scratch_dir / f"ott_{uuid.uuid4().hex[:8]}.wav"
-        with io.BlockWriter(path, seg.sample_rate, out.shape[1]) as w:
-            w.write(out)
-        return replace(seg, source=path, start_frame=0, end_frame=len(out),
-                       ops=seg.ops + ("ott",), seg_id=uuid.uuid4().hex[:8])
+        return replace(seg, start_frame=0, end_frame=len(out),
+                       ops=seg.ops + ("ott",), seg_id=uuid.uuid4().hex[:8], audio=out)

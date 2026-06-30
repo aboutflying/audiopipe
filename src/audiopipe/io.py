@@ -76,6 +76,14 @@ def read_frames(path: Path, start: int, n: int, channels: str = "keep") -> np.nd
     return _apply_channels(block, channels)
 
 
+def materialize(seg, channels: str) -> np.ndarray:
+    """A segment's audio as a (frames, channels) array: the in-memory buffer if a
+    stage already rendered one, otherwise a windowed read from its source file."""
+    if seg.audio is not None:
+        return seg.audio
+    return read_frames(seg.source, seg.start_frame, seg.n_frames, channels)
+
+
 class BlockWriter:
     """Block-write output rather than accumulating one giant array."""
     def __init__(self, path: Path, sample_rate: int, channels: int):

@@ -46,12 +46,11 @@ def test_dsp_renders_to_scratch_and_transforms(tmp_path, tone):
     n_in = edl.segments[0].n_frames
     out = Dsp(drive=0.5, tone=0.6, chorus=0.0, reverb=0.0).process(edl, _ctx(tmp_path))
     seg = out.segments[0]
-    assert tmp_path in Path(seg.source).parents          # scratch-backed
+    assert seg.audio is not None                          # rendered in-memory
     assert "fx" in seg.ops
     assert seg.start_frame == 0 and seg.n_frames == n_in  # filter/drive preserve length
     dry, _ = sf.read(str(tone), always_2d=True)
-    wet, _ = sf.read(str(seg.source), always_2d=True)
-    assert not np.allclose(dry[:, :1].mean(1, keepdims=True), wet, atol=1e-3)
+    assert not np.allclose(dry, seg.audio, atol=1e-3)
 
 
 def test_filter_reduces_brightness(tmp_path, tone):
@@ -59,7 +58,7 @@ def test_filter_reduces_brightness(tmp_path, tone):
     edl = _single(tone)
     out = Dsp(drive=0, tone=0.95, chorus=0, reverb=0).process(edl, _ctx(tmp_path))
     dry, _ = sf.read(str(tone))
-    wet, _ = sf.read(str(out.segments[0].source))
+    wet = out.segments[0].audio[:, 0]
     hf_dry = float(np.sum(np.diff(dry) ** 2))
     hf_wet = float(np.sum(np.diff(wet) ** 2))
     assert hf_wet < hf_dry
@@ -71,7 +70,7 @@ def test_dsp_deterministic(tmp_path):
     def run(dest):
         edl = _single(t)
         e = Dsp(drive=0.4, tone=0.5, chorus=0.3, reverb=0.4).process(edl, _ctx(dest))
-        return sf.read(str(e.segments[0].source))[0]
+        return e.segments[0].audio
 
     a = run(tmp_path / "a")
     b = run(tmp_path / "b")

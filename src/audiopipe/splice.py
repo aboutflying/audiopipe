@@ -56,9 +56,24 @@ def _snap_zerocross(source: Path, frame: int, channels: str, search: int = 64) -
     return int(cand[np.argmin(np.abs(cand - frame))])
 
 
+def _zerocross_trim(a: np.ndarray, search: int = 64) -> np.ndarray:
+    """Trim an in-memory grain's edges to the nearest zero crossings."""
+    m = a.mean(axis=1)
+    s, e = 0, len(a)
+    head = np.nonzero(np.diff(np.signbit(m[:search + 1])))[0]
+    if len(head):
+        s = int(head[0]) + 1
+    base = max(0, len(a) - search - 1)
+    tail = np.nonzero(np.diff(np.signbit(m[base:])))[0]
+    if len(tail):
+        e = base + int(tail[-1]) + 1
+    return a[s:e] if e > s else a
+
+
 def render_edl(edl: EDL, out_path: Path, *, join: str, fade: float, channels: str) -> None:
-    """Materialize the EDL to one continuous wav. cut/zerocross stream block by
-    block (safe on whole-file segments); crossfade reads per grain."""
+    """Materialize the EDL to one continuous wav. Grains with an in-memory buffer
+    are written directly; reference-only grains stream block by block from source
+    (keeps long, un-effected inputs windowed). crossfade overlaps per grain."""
     segs = edl.segments
     sr = edl.sample_rate
     out_ch = 1 if channels in ("sum", "left") else (segs[0].channels if segs else 1)
@@ -67,6 +82,9 @@ def render_edl(edl: EDL, out_path: Path, *, join: str, fade: float, channels: st
             _render_crossfade(segs, w, channels, _fade_frames(fade, sr))
         else:
             for seg in segs:
+                if seg.audio is not None:
+                    w.write(_zerocross_trim(seg.audio) if join == "zerocross" else seg.audio)
+                    continue
                 s, e = seg.start_frame, seg.end_frame
                 if join == "zerocross":
                     s = _snap_zerocross(seg.source, s, channels)
@@ -78,7 +96,7 @@ def render_edl(edl: EDL, out_path: Path, *, join: str, fade: float, channels: st
 def _render_crossfade(segs, w, channels, L0) -> None:
     tail = None  # previous grain's faded-out overlap, pending write
     for i, seg in enumerate(segs):
-        audio = io.read_frames(seg.source, seg.start_frame, seg.n_frames, channels)
+        audio = io.materialize(seg, channels)
         if len(audio) == 0:
             continue
         body_start = 0

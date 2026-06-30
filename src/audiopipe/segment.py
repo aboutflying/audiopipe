@@ -22,6 +22,10 @@ class Segment:
     cycle: int = 0
     # Stable id so a segment can be traced through the EDL and into the sidecar.
     seg_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
+    # In-memory rendered audio (frames, channels). Set by sample-transforming
+    # stages (fx/vari/ott) instead of writing scratch; None = read from `source`.
+    # Excluded from eq/hash/repr/serialization — `source`+frames are the identity.
+    audio: object = field(default=None, compare=False, repr=False)
 
     @property
     def n_frames(self) -> int:
