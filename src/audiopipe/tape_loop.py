@@ -67,8 +67,9 @@ def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, in_path: Path, out_path: Pa
         wear = wear_amount * (c / span)
         per_cycle_wear.append(wear)
         if feedback:
-            # cycle N's wear feeds the next; character is applied fresh per pass
-            worn = prev if c == 0 else degrade(prev, sr, wear_amount / span, ctx.rng)
+            # cycle N degrades cycle N-1's *already-worn* output by the ramped
+            # wear, so damage compounds (self-feeding) instead of plateauing
+            worn = prev if c == 0 else degrade(prev, sr, wear, ctx.rng)
             prev = worn
         else:
             worn = degrade(original, sr, wear, ctx.rng)

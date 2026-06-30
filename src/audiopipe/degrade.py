@@ -17,8 +17,9 @@ def degrade(audio: np.ndarray, sr: int, wear: float, rng=None) -> np.ndarray:
         return audio.astype("float32", copy=True)
     if audio.ndim == 1:
         audio = audio[:, None]
-    # progressive dulling: full bandwidth at wear 0 -> ~1.5kHz at wear 1
-    cutoff = sr / 2 * (1 - wear) + 1500 * wear
+    # progressive dulling on a perceptual (log-frequency) curve so even moderate
+    # wear is audible regardless of sample rate: ~18 kHz at wear 0 -> 250 Hz at 1.
+    cutoff = min(sr / 2 * 0.95, 18000.0 * (250.0 / 18000.0) ** wear)
     out = _lowpass(audio, sr, cutoff)
     out *= (1 - 0.5 * wear)          # level loss up to ~-6 dB
     return out
