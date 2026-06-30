@@ -133,7 +133,7 @@ def test_disintegrates_across_cycles(tmp_path):
     e = EDL(segments=[], seed=42, sample_rate=16000)
     run_tape_loop(e, _ctx(scratch), {"cycles": 8, "wear": 0.6,
                   "feedback": False, "seam": "cut", "hiss": 0.0,
-                  "flutter": 0.0, "speed": 1.0}, loop, tmp_path / "o.wav")
+                  "flutter": 0.0, "speed": 1.0, "reverse": False}, loop, tmp_path / "o.wav")
     cyc = sorted(e.segments, key=lambda s: s.cycle)
     first, _ = sf.read(str(cyc[0].source))
     last, _ = sf.read(str(cyc[-1].source))
@@ -150,7 +150,8 @@ def test_tape_loop_region_windows_content(tmp_path):
     def run(region):
         e = EDL(segments=[], seed=42, sample_rate=16000)
         cfg = {"cycles": 3, "wear": 0.5, "feedback": False, "seam": "cut",
-               "region": region, "hiss": 0.0, "flutter": 0.0, "speed": 1.0}
+               "region": region, "hiss": 0.0, "flutter": 0.0, "speed": 1.0,
+               "reverse": False}
         out = tmp_path / f"o_{region}.wav"
         run_tape_loop(e, _ctx(scratch), cfg, loop, out)
         return io.frames_of(out)
@@ -198,3 +199,17 @@ def test_tape_character_single_pass(tmp_path):
     assert sp["dropouts"] == 0.5
     data, _ = sf.read(str(out))
     assert np.any(data == 0.0)        # dropouts printed
+
+
+def test_tape_loop_reverse_whole_output(tmp_path):
+    # the entire rendered output plays backwards
+    sweep = write_sweep(tmp_path / "in.wav", seconds=3.0)
+    cfg = tmp_path / "p.yaml"
+    cfg.write_text(yaml.safe_dump({
+        "chain": ["grain", "splice"],
+        "tape_loop": {"reverse": True}}))
+    out = tmp_path / "out.wav"
+    render_one(sweep, cfg, out, tmp_path / "scratch")
+    fwd, _ = sf.read(str(sweep))
+    rev, _ = sf.read(str(out))
+    assert np.allclose(rev, fwd[::-1], atol=1e-4)

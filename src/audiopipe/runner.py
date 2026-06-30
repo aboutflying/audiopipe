@@ -44,7 +44,8 @@ def render_one(input_path: Path, config_path: Path, out_path: Path,
             ott_file(master, ott["depth"])
 
         tl = cfg["tape_loop"]
-        if tl["cycles"] > 1 or tl["hiss"] > 0 or tl["flutter"] > 0 or tl["speed"] != 1.0:
+        if (tl["cycles"] > 1 or tl["hiss"] > 0 or tl["flutter"] > 0
+                or tl["speed"] != 1.0 or tl["reverse"]):
             from .tape_loop import run_tape_loop
             run_tape_loop(edl, ctx, tl, master, out_path)
         else:

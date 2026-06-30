@@ -284,6 +284,7 @@ tape_loop:
   hiss: 0.0                # tape noise floor (every pass, incl. cycles:1)
   flutter: 0.0             # wow & flutter (timebase warble) on the whole output
   speed: 1.0               # steady varispeed: >1 faster+higher, <1 slower+lower
+  reverse: false           # play the whole rendered tape backwards
 ```
 
 A post-chain construct (not a `chain` entry) that applies **tape character** to
@@ -308,6 +309,8 @@ Dials:
   drifts (`vari.wobble` is the per-grain version; this is on the whole output).
 - `speed` — steady varispeed on the whole output (`vari.speed` is the per-grain
   version). `2.0` = octave up / half length; pitch follows speed, like a tape.
+- `reverse` — `true` plays the entire rendered tape backwards (the whole-output
+  version of per-grain `vari.reverse`; applied last, after any loop/character).
 - `region` — which section of the rendered output to use, in **seconds of the
   spliced output**. `null` = whole; `[8.0, 12.0]` = that 4-second window only.
 - `feedback` — `false` computes each cycle from the original (cheap, cycles
