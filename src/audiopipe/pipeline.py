@@ -89,11 +89,27 @@ def _resolve_master(entries, cfg: dict) -> list:
     return out
 
 
+# Enumerated values, validated at load so a typo fails loud instead of deep in
+# a render (e.g. `channels: independent` used to die inside splice).
+_ENUMS = {
+    ("source", "channels"): ("sum", "left", "keep"),
+    ("grain", "mode"): ("grid", "random", "onset", "silence"),
+    ("rearrange", "feel"): ("as-is", "shuffle", "reverse", "sort"),
+    ("rearrange", "sort_by"): ("brightness", "loudness", "duration"),
+    ("splice", "join"): ("cut", "zerocross", "crossfade"),
+    ("tape", "seam"): ("cut", "zerocross", "crossfade"),
+}
+
+
 def resolve_config(raw: dict) -> dict:
     cfg = _merge(DEFAULTS, raw or {}, "")
     for name in cfg["chain"]:
         if name not in STAGES:
             raise ValueError(f"unknown stage {name!r} in chain")
+    for (sec, key), allowed in _ENUMS.items():
+        if cfg[sec][key] not in allowed:
+            raise ValueError(f"{sec}.{key}: {cfg[sec][key]!r} not allowed; "
+                             f"pick one of {list(allowed)}")
     cfg["master"] = _resolve_master(cfg["master"], cfg)
     return cfg
 

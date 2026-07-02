@@ -107,3 +107,11 @@ def test_watch_once_drains_inbox(tmp_path, tone, capsys):
     watch(tmp_path / "work", cfg, once=True)
     assert (q.outbox / "song.wav").exists()
     assert not list(q.inbox.iterdir())
+
+
+def test_loader_rejects_bad_enum_value():
+    # the `channels: independent` class of bug fails at load, not mid-render
+    with pytest.raises(ValueError, match="source.channels: 'independent'"):
+        resolve_config({"source": {"channels": "independent"}})
+    with pytest.raises(ValueError, match="rearrange.feel"):
+        resolve_config({"rearrange": {"feel": "sorted"}})
