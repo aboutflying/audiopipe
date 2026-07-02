@@ -71,6 +71,29 @@ def _render_master(edl: EDL, ctx, scratch_dir: Path) -> Path:
     return master
 
 
+def watch(work_root: Path, config_path: Path, interval: float = 2.0,
+          once: bool = False) -> None:
+    """The always-on worker loop (the reconcile loop from the original spec):
+    poll inbox/, render whatever lands there, repeat. Ctrl-C to stop.
+    ponytail: stdlib polling; swap in watchdog/FSEvents if latency ever matters."""
+    import time
+    print(f"watching {Path(work_root) / 'inbox'} (every {interval:g}s, Ctrl-C to stop)")
+    while True:
+        try:
+            for out in process_inbox(work_root, config_path):
+                print(out, flush=True)
+        except KeyboardInterrupt:
+            raise
+        except Exception as exc:  # noqa: BLE001 - keep the daemon alive
+            print(f"error: {exc!r}", flush=True)
+        if once:
+            return
+        try:
+            time.sleep(interval)
+        except KeyboardInterrupt:
+            return
+
+
 def process_inbox(work_root: Path, config_path: Path) -> list[Path]:
     """Drain inbox/: claim each file, render, move to done/ (or failed/)."""
     q = Queue(work_root)

@@ -97,3 +97,13 @@ def test_process_drains_inbox_and_sidecar(tmp_path, tone):
     side = json.loads(outs[0].with_suffix(".json").read_text())
     assert side["input_sha256"] == sha256(q.done / "song.wav")
     assert len(side["edl"]["segments"]) == 1
+
+
+def test_watch_once_drains_inbox(tmp_path, tone, capsys):
+    from audiopipe.runner import watch
+    cfg = _passthrough_cfg(tmp_path)
+    q = Queue(tmp_path / "work")
+    (q.inbox / "song.wav").write_bytes(Path(tone).read_bytes())
+    watch(tmp_path / "work", cfg, once=True)
+    assert (q.outbox / "song.wav").exists()
+    assert not list(q.inbox.iterdir())

@@ -68,8 +68,10 @@ Run a single file directly, choosing a preset and output path:
 ### CLI
 
 ```
-audiopipe [-c CONFIG] [-w WORK] process       # drain work/inbox/
+audiopipe [-c CONFIG] [-w WORK] process       # drain work/inbox/ once
+audiopipe [-c CONFIG] [-w WORK] watch [-i N]  # daemon: poll inbox/ every N s (default 2)
 audiopipe [-c CONFIG] [-w WORK] run FILE [-o OUT]
+audiopipe score SCORE.yaml -o OUT.wav         # long-form multi-voice render (M5)
 ```
 
 - `-c, --config` — pipeline YAML. **Omit to use the built-in defaults.** Pass a
@@ -109,6 +111,10 @@ into each effect by setting its dial; you never have to switch one off.
 ```yaml
 seed: 42                   # global determinism; change to roll a new variant
 ```
+
+Each stage draws from its own sub-stream derived from `(seed, stage name)`, so
+tweaking one stage's dials never rerolls another's choices — a shuffle you like
+survives changing the grain density. Change `seed` itself to reroll everything.
 
 ### `source`
 
@@ -253,7 +259,6 @@ stay reference-only). Only takes effect when `vari` is in `chain`.
 ```yaml
 ott:
   depth: 0.0               # 0 = bypass; toward 1 = slammed wall-of-sound
-  where: grain             # grain (per-grain, in the chain) | output (master pass)
 ```
 
 OTT-style multiband upward **and** downward compression: the signal is split
@@ -262,15 +267,30 @@ depth-scaled threshold, with strong makeup and a soft-clipped output. The result
 is dense and loud (it raises RMS and crushes crest factor), and—being upward—it
 drags up reverb tails and room tone.
 
-- `depth` — `0` bypasses; higher = lower threshold, higher ratios, more makeup.
-- `where`:
-  - `grain` — runs as a **chain stage**: each grain is slammed independently
-    (pumpy, glitchy, on-brand for collage). List `ott` in `chain` where you want
-    it, e.g. `chain: [grain, ott, splice]`.
-  - `output` — runs as a **master pass** on the rendered mix, after `splice` but
-    **before** the `tape` stage, so the physical tape character (hiss, wear,
-    flutter) is *not* fed into the compressor. Chain membership is ignored in
-    this mode; just set `where: output`.
+Placement decides scope: list `ott` in `chain` and each grain is slammed
+independently (pumpy, glitchy); list it in `master` and it compresses the whole
+rendered mix. Same dial, two positions.
+
+### `master` — whole-output passes, in order
+
+```yaml
+master:                    # applied to the rendered mix, top to bottom
+  - {fx: {reverb: 0.5}}    # glue reverb (standalone dials, chain fx untouched)
+  - ott                    # bus compression (uses the shared ott: block)
+  - tape                   # physical medium — put it last so hiss/wear
+                           # are never fed into the compressor
+```
+
+Like `chain`, **order is the composition** — but these run on the finished
+render, not per grain. Default is `[]` (no passes). Available: `fx`, `ott`,
+`tape`.
+
+Each entry is either a **bare name** (uses that section's shared config block)
+or **`{name: {dials}}`** — standalone settings over that section's defaults, so
+per-grain `fx` texture and master glue `fx` can differ. Master `fx` reverb and
+chorus get ~3 s of appended tail so ring-outs aren't truncated (the reason glue
+reverb belongs here and not per grain, where every tail cuts at the grain
+boundary). The `tape` pass only runs when listed here.
 
 ### `tape` — finishing tape pass + render-once loop *(needs `analysis` extra)*
 
@@ -287,10 +307,10 @@ tape:
   reverse: false           # play the whole rendered tape backwards
 ```
 
-A post-chain construct (not a `chain` entry) that applies **tape character** to
-the rendered output. It runs whenever `cycles > 1` **or** any character dial
-(`hiss`/`flutter`/`speed`) is set. (Dropouts live at `splice.dropouts` — they're
-printed into the render so a loop repeats the same holes.)
+The physical-medium pass: it applies **tape character** to the rendered output,
+and runs when listed in `master:` (conventionally last, so hiss/wear are never
+fed into the compressor). (Dropouts live at `splice.dropouts` — they're printed
+into the render so a loop repeats the same holes.)
 
 Two roles:
 - **Finishing pass** (`cycles: 1`): one tape pass over the spliced output —
@@ -347,7 +367,8 @@ queue.py     the inbox/working/done/failed directory state machine
 storage/     StorageBackend protocol (local implemented; S3/Dropbox later)
 sidecar.py   the reproducibility record
 cli.py       `audiopipe run` / `audiopipe process`
-runner.py    orchestration: transcode -> chain -> master render -> OTT -> tape -> sidecar
+runner.py    orchestration: transcode -> chain -> master render -> master passes -> sidecar; watch daemon
+score.py / mix.py   M5 long-form: Placement compile, timeline mixing, limiter
 ```
 
 ## Development

@@ -19,7 +19,11 @@ def main(argv=None) -> int:
     pr.add_argument("file", type=Path)
     pr.add_argument("-o", "--out", type=Path, default=None)
 
-    sub.add_parser("process", help="drain inbox/")
+    sub.add_parser("process", help="drain inbox/ once")
+
+    pw = sub.add_parser("watch", help="daemon: poll inbox/ and render whatever lands")
+    pw.add_argument("-i", "--interval", type=float, default=2.0,
+                    help="poll interval in seconds (default 2)")
 
     ps = sub.add_parser("score", help="render a long-form score (many voices)")
     ps.add_argument("config", type=Path)
@@ -36,6 +40,9 @@ def main(argv=None) -> int:
         outs = process_inbox(args.work, args.config)
         for o in outs:
             print(o)
+    elif args.cmd == "watch":
+        from .runner import watch
+        watch(args.work, args.config, interval=args.interval)
     elif args.cmd == "score":
         from .score import render_score
         args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -1,3 +1,15 @@
+> **Status: design history, not the living contract.** This is the original
+> spec; the implementation has since evolved past it. Notable deviations: the
+> config vocabulary was renamed (`slice`→`grain`, `sequence`→`rearrange`,
+> `dsp`→`fx`, `warp`→`vari`, `tape_loop`→`tape`, and most dials); defaults are
+> now *transparent* (every omitted dial is a no-op — the default chain is an
+> identity render); dropouts are printed at `splice`; whole-output passes run
+> via a configurable `master:` list; randomness uses per-stage sub-seeds; a
+> `vari` stage (per-grain reverse/varispeed) and an `ott` stage exist that were
+> never specced. **The README is the source of truth for the current config
+> contract.** Read this file for the architecture's reasoning and the M4/M5
+> roadmap, not for exact names or defaults.
+
 # audiopipe: Milestones 1 to 3 Spec
 
 A self-hosted audio pipeline that watches a folder, slices/resequences/processes
