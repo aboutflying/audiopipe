@@ -31,25 +31,25 @@ def render_one(input_path: Path, config_path: Path, out_path: Path,
 
         edl = run_chain(edl, stages, ctx)
 
-        # Post-chain signal flow, in order:
-        #   1. render the chain to one "master" file (the clean collage)
-        #   2. OTT master compression (whole-output)
-        #   3. tape: physical medium (hiss/wear/flutter/loop) applied LAST, so
-        #      tape character is never fed into OTT.
+        # Post-chain: render the chain to one "master" file, then apply the
+        # `master:` passes in configured order (fx = glue, ott = bus comp,
+        # tape = physical medium — by convention last, so tape character is
+        # never fed into the compressor).
         master = _render_master(edl, ctx, scratch_dir)
-
-        ott = cfg["ott"]
-        if ott["where"] == "output" and ott["depth"] > 0:
-            from .ott import ott_file
-            ott_file(master, ott["depth"])
-
-        tl = cfg["tape"]
-        if (tl["cycles"] > 1 or tl["hiss"] > 0 or tl["flutter"] > 0
-                or tl["speed"] != 1.0 or tl["reverse"]):
-            from .tape import run_tape
-            run_tape(edl, ctx, tl, master, out_path)
-        else:
-            shutil.copy2(master, out_path)
+        for name, params in cfg["master"]:
+            if name == "fx":
+                from .dsp import fx_file
+                fx_file(master, params)
+                edl.record("master:fx", params)
+            elif name == "ott":
+                if params["depth"] > 0:
+                    from .ott import ott_file
+                    ott_file(master, params["depth"])
+                edl.record("master:ott", params)
+            elif name == "tape":
+                from .tape import run_tape
+                run_tape(edl, ctx, params, master, master)  # records itself
+        shutil.copy2(master, out_path)
 
         sidecar.write_success(out_path, input_path=input_path, config=cfg, edl=edl)
         return out_path, edl, cfg

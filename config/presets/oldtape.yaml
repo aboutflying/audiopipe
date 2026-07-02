@@ -9,9 +9,10 @@ fx:    {drive: 0.3, tone: 0.65, chorus: 0.5, reverb: 0.8}  # saturation, dull hi
 splice: {join: crossfade, fade: 0.15, dropouts: 0.2}   # dropouts printed into the render (repeat each loop)
 # Finishing tape pass on the rendered output: hiss, wow/flutter, varispeed, wear.
 tape: {seam: crossfade, region: [11,15], cycles: 16, hiss: 0.10, flutter: 0.6, speed: 0.66, wear: 0.7, feedback: true}
-ott: {depth: 0.5, where: output}
+ott: {depth: 0.5}
 rearrange:
   feel: sort              # as-is | shuffle | reverse | sort   (as-is = transparent)
   scramble: 0.0            # shuffle: how far segments stray from order
   drop: 0.0                # fraction of segments discarded (0 = keep all)
   sort_by: loudness      # sort: brightness | loudness | duration
+master: [ott, tape]       # whole-output passes in order: bus comp, then tape last

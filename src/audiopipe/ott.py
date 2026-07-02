@@ -72,22 +72,18 @@ def ott_file(path: Path, depth: float) -> None:
 
 
 class Ott:
-    """Extreme multiband compressor. where='grain' slams each grain in the chain;
-    where='output' runs as a master pass on the final render (via the runner)."""
+    """Extreme multiband compressor. In `chain` it slams each grain independently;
+    listed in `master` it runs on the whole rendered mix (via ott_file)."""
     name = "ott"
 
-    def __init__(self, depth: float = 0.0, where: str = "grain"):
+    def __init__(self, depth: float = 0.0):
         self.depth = float(depth)
-        self.where = where
 
     def process(self, edl: EDL, ctx: Context) -> EDL:
-        if self.where not in ("grain", "output"):
-            raise ValueError(f"ott.where must be 'grain' or 'output', got {self.where!r}")
-        # as a chain stage it only acts per-grain; 'output' is handled by the runner
-        if self.where == "grain" and self.depth > 0:
+        if self.depth > 0:
             edl.segments = [s for s in (self._render(seg, ctx) for seg in edl.segments)
                             if s is not None]
-        edl.record(self.name, {"depth": self.depth, "where": self.where})
+        edl.record(self.name, {"depth": self.depth})
         return edl
 
     def _render(self, seg: Segment, ctx: Context) -> Segment | None:

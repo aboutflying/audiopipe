@@ -86,3 +86,42 @@ def test_dsp_in_chain_via_cli(tmp_path):
     out = tmp_path / "out.wav"
     render_one(tone, cfg, out, tmp_path / "scratch")
     assert out.exists() and io.frames_of(out) > 0
+
+
+def test_master_fx_glue_reverb_tail(tmp_path):
+    # master fx reverb pads the output so the tail rings past the end —
+    # unlike per-grain fx, where tails truncate at grain boundaries
+    tone = write_tone(tmp_path / "in.wav", seconds=2.0)
+    base = tmp_path / "dry.yaml"
+    base.write_text(yaml.safe_dump({"chain": ["grain", "splice"]}))
+    wet = tmp_path / "wet.yaml"
+    wet.write_text(yaml.safe_dump({
+        "chain": ["grain", "splice"],
+        "master": [{"fx": {"reverb": 0.6}}]}))
+    render_one(tone, base, tmp_path / "dry.wav", tmp_path / "s1")
+    _, edl, _ = render_one(tone, wet, tmp_path / "wet.wav", tmp_path / "s2")
+    n_dry = io.frames_of(tmp_path / "dry.wav")
+    n_wet = io.frames_of(tmp_path / "wet.wav")
+    assert n_wet > n_dry                      # tail pad appended
+    y, _ = sf.read(str(tmp_path / "wet.wav"))
+    assert np.any(np.abs(y[n_dry:]) > 1e-4)   # and the tail actually rings
+    assert any(h["stage"] == "master:fx" for h in edl.history)
+
+
+def test_master_inline_dials_are_standalone(tmp_path):
+    # {fx: {reverb: .5}} in master must NOT inherit the chain fx block's drive
+    from audiopipe.pipeline import resolve_config
+    cfg = resolve_config({"chain": ["grain", "fx", "splice"],
+                          "fx": {"drive": 0.9},
+                          "master": [{"fx": {"reverb": 0.5}}]})
+    name, params = cfg["master"][0]
+    assert name == "fx" and params["reverb"] == 0.5 and params["drive"] == 0.0
+    # bare name uses the shared block
+    cfg2 = resolve_config({"fx": {"drive": 0.9}, "master": ["fx"]})
+    assert cfg2["master"][0][1]["drive"] == 0.9
+
+
+def test_master_rejects_unknown_pass():
+    from audiopipe.pipeline import resolve_config
+    with pytest.raises(ValueError, match="unknown master pass"):
+        resolve_config({"master": ["vari"]})

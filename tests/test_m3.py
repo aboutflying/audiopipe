@@ -63,6 +63,7 @@ def _tape_cfg(tmp_path, cycles, recursive=False, seam="cut"):
     cfg = tmp_path / "p.yaml"
     cfg.write_text(yaml.safe_dump({
         "chain": ["grain", "rearrange", "splice"],
+        "master": ["tape"],
         "tape": {"cycles": cycles, "wear": 0.6, "feedback": recursive,
                       "seam": seam}}))
     return cfg
@@ -189,6 +190,7 @@ def test_tape_character_single_pass(tmp_path):
     cfg.write_text(yaml.safe_dump({
         "chain": ["grain", "splice"],
         "splice": {"dropouts": 0.5},
+        "master": ["tape"],
         "tape": {"cycles": 1, "hiss": 0.4, "flutter": 0.2, "speed": 1.1}}))
     out = tmp_path / "out.wav"
     _, edl, _ = render_one(sweep, cfg, out, tmp_path / "scratch")
@@ -207,6 +209,7 @@ def test_tape_loop_reverse_whole_output(tmp_path):
     cfg = tmp_path / "p.yaml"
     cfg.write_text(yaml.safe_dump({
         "chain": ["grain", "splice"],
+        "master": ["tape"],
         "tape": {"reverse": True}}))
     out = tmp_path / "out.wav"
     render_one(sweep, cfg, out, tmp_path / "scratch")

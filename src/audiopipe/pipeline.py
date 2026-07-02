@@ -39,11 +39,19 @@ DEFAULTS = {
     "splice": {"join": "cut", "fade": 0.0, "dropouts": 0.0},
     "fx": {"drive": 0.0, "tone": 0.0, "chorus": 0.0, "reverb": 0.0},
     "vari": {"reverse": 0.0, "speed": 1.0, "wobble": 0.0},
-    "ott": {"depth": 0.0, "where": "grain"},
+    "ott": {"depth": 0.0},
     "tape": {"cycles": 1, "wear": 0.0, "feedback": False,
              "seam": "cut", "region": None,
              "hiss": 0.0, "flutter": 0.0, "speed": 1.0, "reverse": False},
+    # Whole-output passes applied to the rendered mix, in order (like `chain`,
+    # order is the composition). Entries: a name, or {name: {dials}} for
+    # standalone settings independent of the shared section block.
+    "master": [],
 }
+
+# Passes allowed in `master`. fx = glue effects (reverb tails ring past cuts),
+# ott = bus compression, tape = the physical medium (applied last by convention).
+MASTER_PASSES = ("fx", "ott", "tape")
 
 
 def _merge(defaults: dict, user: dict, where: str) -> dict:
@@ -59,11 +67,34 @@ def _merge(defaults: dict, user: dict, where: str) -> dict:
     return out
 
 
+def _resolve_master(entries, cfg: dict) -> list:
+    """Normalize `master` entries to [name, params] pairs. A bare name uses the
+    shared section block; {name: {dials}} is standalone over that section's
+    DEFAULTS (transparent: unset dials are off)."""
+    out = []
+    for e in entries:
+        if isinstance(e, str):
+            name, overrides = e, None
+        elif isinstance(e, dict) and len(e) == 1:
+            name, overrides = next(iter(e.items()))
+        else:
+            raise ValueError(f"master entry must be a pass name or "
+                             f"{{name: {{dials}}}}, got {e!r}")
+        if name not in MASTER_PASSES:
+            raise ValueError(f"unknown master pass {name!r}; "
+                             f"pick from {list(MASTER_PASSES)}")
+        params = (cfg[name] if overrides is None
+                  else _merge(DEFAULTS[name], overrides, f"master.{name}."))
+        out.append([name, params])
+    return out
+
+
 def resolve_config(raw: dict) -> dict:
     cfg = _merge(DEFAULTS, raw or {}, "")
     for name in cfg["chain"]:
         if name not in STAGES:
             raise ValueError(f"unknown stage {name!r} in chain")
+    cfg["master"] = _resolve_master(cfg["master"], cfg)
     return cfg
 
 

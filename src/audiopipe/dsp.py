@@ -1,10 +1,29 @@
 from __future__ import annotations
 from dataclasses import replace
+from pathlib import Path
 import uuid
+import numpy as np
 from .segment import EDL, Segment
 from .stages.base import Context
 from .mapping import fx_params
 from . import io
+
+
+def fx_file(path: Path, dials: dict) -> None:
+    """Apply the fx board to a rendered file in place (the master/glue position).
+    Reverb/chorus get ~3 s of appended silence first so the tail rings out past
+    the end instead of truncating — the reason glue reverb lives here and not
+    per grain (where every tail would be cut at the grain boundary)."""
+    import soundfile as sf
+    params = fx_params(dials)
+    if not params:
+        return
+    sr, ch, n = io.info(path)
+    audio = io.read_frames(path, 0, n, "keep")
+    if "reverb_room" in params or "chorus_mix" in params:
+        audio = np.concatenate([audio, np.zeros((3 * sr, audio.shape[1]), dtype="float32")])
+    out = _build_board(params, sr)(audio, sr, reset=True)
+    sf.write(str(path), out, sr)
 
 
 def _build_board(params: dict, sr: int):

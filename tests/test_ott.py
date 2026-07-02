@@ -54,28 +54,21 @@ def test_ott_deterministic():
 def test_ott_per_grain_stage(tmp_path, tone):
     edl = EDL.single(Path(tone), io.frames_of(tone), 16000, 1, seed=1)
     e = Segmenter("grid", 0.6, 0.0).process(edl, _ctx(tmp_path))
-    out = Ott(depth=0.7, where="grain").process(e, _ctx(tmp_path))
+    out = Ott(depth=0.7).process(e, _ctx(tmp_path))
     assert all("ott" in s.ops for s in out.segments)          # every grain slammed
     assert all(s.audio is not None for s in out.segments)     # rendered in-memory
 
 
-def test_ott_output_where_is_noop_in_chain(tmp_path, tone):
-    # where='output' must NOT process in the chain (the runner handles it)
-    edl = EDL.single(Path(tone), io.frames_of(tone), 16000, 1, seed=1)
-    e = Segmenter("grid", 0.6, 0.0).process(edl, _ctx(tmp_path))
-    srcs = [s.source for s in e.segments]
-    out = Ott(depth=0.9, where="output").process(e, _ctx(tmp_path))
-    assert [s.source for s in out.segments] == srcs           # untouched
-
-
-def test_ott_whole_output_via_cli(tmp_path):
+def test_ott_master_pass_via_cli(tmp_path):
     tone = write_tone(tmp_path / "in.wav", seconds=3.0)
     cfg = tmp_path / "p.yaml"
     cfg.write_text(yaml.safe_dump({
         "chain": ["grain", "splice"],
-        "ott": {"depth": 0.8, "where": "output"}}))
+        "master": ["ott"],
+        "ott": {"depth": 0.8}}))
     out = tmp_path / "out.wav"
     _, edl, _ = render_one(tone, cfg, out, tmp_path / "scratch")
     assert out.exists() and io.frames_of(out) > 0
-    # the per-grain ott stage isn't in the chain; history records it didn't run there
+    # ott ran as a master pass, not as a chain stage
+    assert any(h["stage"] == "master:ott" for h in edl.history)
     assert not any(h["stage"] == "ott" for h in edl.history)
