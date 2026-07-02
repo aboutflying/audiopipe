@@ -62,7 +62,7 @@ def test_mix_lands_energy_at_exact_frames_and_pans():
     click = np.zeros((10, 1), dtype="float32"); click[0] = 1.0
     placements = [Placement("a", "x", 100, 0, 1.0, -1.0, 0.0),   # hard left @100
                   Placement("b", "x", 250, 0, 1.0, 1.0, 0.0)]    # hard right @250
-    m = mix_placements(placements, {"a": click, "b": click}, 1000, normalize_db=-1.0)
+    m = mix_placements(placements, [click, click], 1000, normalize_db=-1.0)
     assert m.shape == (1000, 2)
     assert m[100, 0] != 0 and abs(m[100, 1]) < 1e-6     # left only at 100
     assert m[250, 1] != 0 and abs(m[250, 0]) < 1e-6     # right only at 250
@@ -90,7 +90,7 @@ def test_overlap_sums():
     tone = np.ones((10, 1), dtype="float32") * 0.3
     m = mix_placements([Placement("a", "x", 0, 0, 1.0, 0.0, 0.0),
                         Placement("b", "x", 0, 0, 1.0, 0.0, 0.0)],
-                       {"a": tone, "b": tone}, 10, normalize_db=0.0, sr=1000)
+                       [tone, tone], 10, normalize_db=0.0, sr=1000)
     # both centre-panned (0.707 each) and summed: 2 * 0.3 * 0.707 = 0.424
     assert abs(np.max(np.abs(m)) - 2 * 0.3 * np.cos(np.pi / 4)) < 1e-3
 
@@ -109,3 +109,69 @@ def test_score_writes_sidecar(tmp_path):
     assert side["seed"] == 7
     assert len(side["placements"]) == len(pl) == 4
     assert side["placements"][0]["voice"] == "a"
+
+
+# --- step 3: pitch + wear ----------------------------------------------------
+
+def test_varispeed_plus_12_halves_length():
+    from audiopipe.score import prepare_clip
+    tone = np.sin(2 * np.pi * 220 * np.arange(16000) / 16000).astype("float32")[:, None]
+    up = prepare_clip(tone, 16000, pitch=12.0, wear=0.0)
+    down = prepare_clip(tone, 16000, pitch=-12.0, wear=0.0)
+    assert abs(len(up) - 8000) <= 1        # octave up = half length
+    assert abs(len(down) - 32000) <= 1     # octave down = double length
+
+
+def test_wear_ramps_across_voice_cycles(tmp_path):
+    import yaml, json, soundfile as sf
+    from audiopipe.score import render_score
+    sr = 16000
+    t = np.arange(sr) / sr
+    loop = (0.4 * np.sin(2 * np.pi * (300 + 4000 * t) * t)).astype("float32")
+    sf.write(str(tmp_path / "l.wav"), loop, sr)
+    cfg = tmp_path / "s.yaml"
+    cfg.write_text(yaml.safe_dump({"score": {
+        "duration": 4.0,
+        "voices": [{"name": "a", "source": str(tmp_path / "l.wav"),
+                    "period": 1.0, "wear": 0.9}]}}))
+    render_score(cfg, tmp_path / "out.wav", sr=sr)
+    y, _ = sf.read(str(tmp_path / "out.wav"))
+    rms = lambda a: float(np.sqrt(np.mean(a ** 2)))
+    first, last = rms(y[:sr]), rms(y[3 * sr:])
+    assert last < first * 0.7               # final cycle audibly worn vs cycle 0
+
+
+def test_voice_rejects_unknown_keys():
+    import pytest
+    from audiopipe.score import _with_defaults
+    with pytest.raises(ValueError, match="unknown voice key"):
+        _with_defaults({"name": "a", "source": "x.wav", "evolve": 0.5})
+
+
+# --- step 4: chain-generated voice content ------------------------------------
+
+def test_chain_voice_renders_once_and_reproduces(tmp_path, monkeypatch):
+    import yaml, soundfile as sf
+    from audiopipe import score as score_mod
+    from tests.conftest import write_tone
+    inp = write_tone(tmp_path / "in.wav", seconds=2.0)
+
+    calls = {"n": 0}
+    import audiopipe.runner as runner_mod
+    orig = runner_mod.render_one
+
+    def counting(*a, **kw):
+        calls["n"] += 1
+        return orig(*a, **kw)
+
+    monkeypatch.setattr(runner_mod, "render_one", counting)
+    cfg = tmp_path / "s.yaml"
+    cfg.write_text(yaml.safe_dump({"score": {
+        "duration": 6.0, "seed": 5,
+        "voices": [{"name": "gen", "source": {"chain": str(inp)}, "period": 1.3}]}}))
+    score_mod.render_score(cfg, tmp_path / "o1.wav", sr=16000)
+    assert calls["n"] == 1                  # chain ran once for 5 cycles
+    score_mod.render_score(cfg, tmp_path / "o2.wav", sr=16000)
+    a, _ = sf.read(str(tmp_path / "o1.wav"))
+    b, _ = sf.read(str(tmp_path / "o2.wav"))
+    assert np.array_equal(a, b)             # reproduces exactly

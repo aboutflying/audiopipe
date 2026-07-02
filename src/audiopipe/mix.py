@@ -31,14 +31,14 @@ def limit(master: np.ndarray, sr: int, ceiling_db: float = -1.0) -> np.ndarray:
     return (master * gain[:, None]).astype("float32")
 
 
-def mix_placements(placements, content: dict, duration_frames: int,
+def mix_placements(placements, clips, duration_frames: int,
                    normalize_db: float = -1.0, sr: int = 44100) -> np.ndarray:
-    """Allocate one stereo master buffer, sum each placement's content at its
+    """Allocate one stereo master buffer, sum each placement's clip at its
     start_frame with equal-power pan and gain, then limit to the `normalize_db`
-    ceiling. Returns the (frames, 2) master."""
+    ceiling. `clips` is a list parallel to `placements` (each cycle may sound
+    different once wear/pitch apply). Returns the (frames, 2) master."""
     master = np.zeros((duration_frames, 2), dtype="float32")
-    for p in placements:
-        c = content[p.voice]
+    for p, c in zip(placements, clips):
         if c.ndim == 2:
             c = c.mean(axis=1)                       # mono-ize for panning
         n = min(len(c), duration_frames - p.start_frame)
