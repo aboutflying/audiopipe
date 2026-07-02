@@ -84,7 +84,7 @@ def load_pipeline(config_path: Path | None, scratch_dir: Path):
         raw = yaml.safe_load(Path(config_path).read_text())
     cfg = resolve_config(raw)
     stages = build_stages(cfg)
-    ctx = Context(scratch_dir=Path(scratch_dir), rng=random.Random(cfg["seed"]),
+    ctx = Context(scratch_dir=Path(scratch_dir), seed=cfg["seed"],
                   channels=cfg["source"]["channels"])
     return stages, ctx, cfg
 

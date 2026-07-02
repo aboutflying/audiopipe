@@ -16,7 +16,7 @@ from .conftest import write_tone
 
 
 def _ctx(tmp_path, seed=42, channels="sum"):
-    return Context(scratch_dir=tmp_path, rng=random.Random(seed), channels=channels)
+    return Context(scratch_dir=tmp_path, seed=seed, channels=channels)
 
 
 def _single(tone):
@@ -46,7 +46,9 @@ def test_jitter_stays_in_bounds(tmp_path, tone):
 
 def test_shuffle_deterministic_and_seed_varies(tmp_path, tone):
     def order(seed):
-        e = Segmenter("grid", 0.6, 0.0).process(_single(tone), _ctx(tmp_path, seed))
+        # density 0.9 -> ~13 grains, enough that two seeds shuffling
+        # identically is vanishingly unlikely
+        e = Segmenter("grid", 0.9, 0.0).process(_single(tone), _ctx(tmp_path, seed))
         e = Sequencer("shuffle", scramble=0.9, drop=0.0).process(e, _ctx(tmp_path, seed))
         return [s.start_frame for s in e.segments]
     assert order(42) == order(42)            # reproducible
@@ -125,3 +127,29 @@ def test_splice_dropouts_printed_and_declicked(tmp_path, tone):
     # a hard zero on a 0.5-amp tone would jump ~0.5; a 3 ms fade keeps it small
     assert np.max(np.abs(np.diff(y))) < 0.1
     assert out.history[-1]["params"]["dropouts"] == 0.9
+
+
+def test_subseeds_isolate_stages(tmp_path, tone):
+    # Changing one stage's dials must not reroll another stage's randomness:
+    # the shuffle's permutation survives a grain-density tweak.
+    def perm(density):
+        e = Segmenter("grid", density, 0.0).process(_single(tone), _ctx(tmp_path, 42))
+        n = len(e.segments)
+        e = Sequencer("shuffle", scramble=0.9, drop=0.0).process(e, _ctx(tmp_path, 42))
+        # express the shuffle as a permutation of original positions
+        order = sorted(range(n), key=lambda i: e.segments[i].start_frame)
+        return [order.index(i) for i in range(n)]
+
+    a = perm(0.9)
+    b = perm(0.9)
+    assert a == b                                     # same everything -> same perm
+    # different grain density -> different segment count, but the rearrange RNG
+    # stream is untouched by grain's dials (grain drift 0 draws nothing; the
+    # stream position for rearrange is identical)
+    ctx = _ctx(tmp_path, 42)
+    r1 = [ctx.rng_for("rearrange").random() for _ in range(5)]
+    ctx.rng_for("grain").random()                     # grain draws...
+    ctx2 = _ctx(tmp_path, 42)
+    ctx2.rng_for("grain").random(); ctx2.rng_for("grain").random()  # ...a different amount
+    r2 = [ctx2.rng_for("rearrange").random() for _ in range(5)]
+    assert r1 == r2                                   # rearrange stream unaffected

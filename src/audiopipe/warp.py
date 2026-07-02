@@ -32,8 +32,8 @@ class Warp:
 
     def _render(self, seg: Segment, ctx: Context) -> Segment | None:
         # draw both randoms up front so the RNG stream is stable per segment
-        do_reverse = ctx.rng.random() < self.reverse
-        speed = self.speed * (1 + ctx.rng.uniform(-self.wobble, self.wobble))
+        do_reverse = ctx.rng_for(self.name).random() < self.reverse
+        speed = self.speed * (1 + ctx.rng_for(self.name).uniform(-self.wobble, self.wobble))
         speed = max(0.1, speed)
         if not do_reverse and abs(speed - 1.0) < 1e-6:
             return seg                          # untouched: stay reference-only

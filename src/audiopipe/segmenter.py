@@ -64,7 +64,7 @@ class Segmenter:
             if self.mode in ("onset", "silence"):
                 out.extend(_cut_onset(seg, self.mode))
             else:
-                out.extend(_cut_segment(seg, self.mode, self.density, self.drift, ctx.rng))
+                out.extend(_cut_segment(seg, self.mode, self.density, self.drift, ctx.rng_for(self.name)))
         edl.segments = out
         edl.record(self.name, {"mode": self.mode, "density": self.density,
                                "drift": self.drift})

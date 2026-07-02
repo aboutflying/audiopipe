@@ -18,7 +18,7 @@ from audiopipe.tape_loop import run_tape_loop
 
 
 def _ctx(tmp_path, seed=42):
-    return Context(scratch_dir=tmp_path, rng=random.Random(seed), channels="sum")
+    return Context(scratch_dir=tmp_path, seed=seed, channels="sum")
 
 
 def write_clicks(path, sr=16000, times=(0.25, 0.5, 0.75, 1.25, 1.5)):

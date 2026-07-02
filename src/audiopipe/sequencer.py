@@ -34,7 +34,7 @@ class Sequencer:
 
         # non-sort feels: drop a random deterministic fraction first
         if k > 0:
-            keep = set(range(n)) - set(ctx.rng.sample(range(n), k))
+            keep = set(range(n)) - set(ctx.rng_for(self.name).sample(range(n), k))
             segs = [s for i, s in enumerate(segs) if i in keep]
 
         if self.feel == "as-is":
@@ -45,7 +45,7 @@ class Sequencer:
             # key = index + scramble*N*noise. scramble 0 keeps order; higher
             # scramble lets segments stray further from their slot.
             m = len(segs)
-            spread = [(i + self.scramble * m * ctx.rng.uniform(-1, 1), s)
+            spread = [(i + self.scramble * m * ctx.rng_for(self.name).uniform(-1, 1), s)
                       for i, s in enumerate(segs)]
             spread.sort(key=lambda t: t[0])
             segs = [s for _, s in spread]

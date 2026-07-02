@@ -19,7 +19,7 @@ from .conftest import write_tone
 
 def _ctx(tmp_path, seed=42, channels="sum"):
     Path(tmp_path).mkdir(parents=True, exist_ok=True)
-    return Context(scratch_dir=Path(tmp_path), rng=random.Random(seed), channels=channels)
+    return Context(scratch_dir=Path(tmp_path), seed=seed, channels=channels)
 
 
 def _single(tone, sr=16000):

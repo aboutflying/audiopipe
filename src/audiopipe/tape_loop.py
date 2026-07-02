@@ -15,8 +15,8 @@ def _character(audio, sr, ctx, *, speed, flutter, hiss):
     varispeed, then wow/flutter, then hiss last so noise isn't itself warped."""
     if abs(speed - 1.0) >= 1e-6:
         audio = io.resample_to(audio, max(1, round(len(audio) / speed)))
-    audio = add_flutter(audio, sr, flutter, ctx.rng)
-    audio = add_hiss(audio, hiss, ctx.rng)
+    audio = add_flutter(audio, sr, flutter, ctx.rng_for("tape"))
+    audio = add_hiss(audio, hiss, ctx.rng_for("tape"))
     return audio
 
 
@@ -73,10 +73,10 @@ def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, in_path: Path, out_path: Pa
         if feedback:
             # cycle N degrades cycle N-1's *already-worn* output by the ramped
             # wear, so damage compounds (self-feeding) instead of plateauing
-            worn = prev if c == 0 else degrade(prev, sr, wear, ctx.rng)
+            worn = prev if c == 0 else degrade(prev, sr, wear, ctx.rng_for("tape"))
             prev = worn
         else:
-            worn = degrade(original, sr, wear, ctx.rng)
+            worn = degrade(original, sr, wear, ctx.rng_for("tape"))
         cur = _character(worn, sr, ctx, speed=speed, flutter=flutter, hiss=hiss)
         cpath = ctx.scratch_dir / f"cycle_{c:03d}.wav"
         sf.write(str(cpath), cur, sr)

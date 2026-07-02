@@ -133,7 +133,7 @@ class Splice:
         out_path = ctx.scratch_dir / f"splice_{uuid.uuid4().hex[:8]}.wav"
         render_edl(edl, out_path, join=self.join, fade=self.fade, channels=ctx.channels)
         if self.dropouts > 0:
-            _print_dropouts(out_path, self.dropouts, ctx.rng)
+            _print_dropouts(out_path, self.dropouts, ctx.rng_for(self.name))
         sr, ch, n = io.info(out_path)
         ops = (f"splice:{self.join}",) + (("dropouts",) if self.dropouts > 0 else ())
         rendered = Segment(source=out_path, start_frame=0, end_frame=n,
