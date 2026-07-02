@@ -16,7 +16,7 @@ class Segment:
     channels: int
     # Provenance / op trail. Stages append a short tag describing what they did.
     ops: tuple[str, ...] = ()
-    # Tape-loop cycle index (0-based). The tape_loop construct tags each repeated
+    # Tape-loop cycle index (0-based). The tape construct tags each repeated
     # copy with its cycle so a degrade operator can ramp wear across cycles. 0 for
     # all non-looped material.
     cycle: int = 0

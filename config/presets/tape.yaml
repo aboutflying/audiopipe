@@ -5,4 +5,4 @@ grain: {mode: grid, density: 0.55, drift: 0.3}
 fx: {drive: 0.2, tone: 0.35, chorus: 0.25, reverb: 0.3}
 rearrange: {feel: shuffle, scramble: 0.6, drop: 0.1}
 splice: {join: crossfade, fade: 0.25}
-tape_loop: {cycles: 6, wear: 0.6, feedback: false, seam: cut}
+tape: {cycles: 6, wear: 0.6, feedback: false, seam: cut}

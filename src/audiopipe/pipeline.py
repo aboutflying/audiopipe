@@ -40,9 +40,9 @@ DEFAULTS = {
     "fx": {"drive": 0.0, "tone": 0.0, "chorus": 0.0, "reverb": 0.0},
     "vari": {"reverse": 0.0, "speed": 1.0, "wobble": 0.0},
     "ott": {"depth": 0.0, "where": "grain"},
-    "tape_loop": {"cycles": 1, "wear": 0.0, "feedback": False,
-                  "seam": "cut", "region": None,
-                  "hiss": 0.0, "flutter": 0.0, "speed": 1.0, "reverse": False},
+    "tape": {"cycles": 1, "wear": 0.0, "feedback": False,
+             "seam": "cut", "region": None,
+             "hiss": 0.0, "flutter": 0.0, "speed": 1.0, "reverse": False},
 }
 
 

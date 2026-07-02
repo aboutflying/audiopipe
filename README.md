@@ -196,7 +196,7 @@ This is where segments are materialized (windowed reads, block-by-block write).
 - `fade` — crossfade length, ~5 ms at `0` up to ~100 ms at `1`.
 - `dropouts` — random short signal dropouts (~10-50 ms, declicked with a ~3 ms
   fade) **printed into the rendered output**. Because they're baked at render
-  time, a `tape_loop` repeats the *same* holes each revolution, like physical
+  time, a `tape` repeats the *same* holes each revolution, like physical
   tape damage. `0` = none; higher = more holes.
 
 ### `fx` — pedalboard effects *(needs `fx` extra)*
@@ -268,14 +268,14 @@ drags up reverb tails and room tone.
     (pumpy, glitchy, on-brand for collage). List `ott` in `chain` where you want
     it, e.g. `chain: [grain, ott, splice]`.
   - `output` — runs as a **master pass** on the rendered mix, after `splice` but
-    **before** the `tape_loop` stage, so the physical tape character (hiss, wear,
+    **before** the `tape` stage, so the physical tape character (hiss, wear,
     flutter) is *not* fed into the compressor. Chain membership is ignored in
     this mode; just set `where: output`.
 
-### `tape_loop` — finishing tape pass + render-once loop *(needs `analysis` extra)*
+### `tape` — finishing tape pass + render-once loop *(needs `analysis` extra)*
 
 ```yaml
-tape_loop:
+tape:
   cycles: 1                # 1 = single finishing pass; >1 = loop that disintegrates
   wear: 0.0                # ramped roll-off + level loss across cycles (loop only)
   feedback: false          # false = f(cycle) [cheap]; true = iterate the op
@@ -341,7 +341,7 @@ stages/      Stage protocol + Context (scratch dir, seeded RNG, channel policy)
 segmenter / sequencer / splice / fx   the EDL -> EDL stages
 analyze.py   librosa features (onset, silence, brightness, loudness)
 mapping.py   coarse 0..1 dials -> concrete values (the curves live here)
-degrade.py / tape_loop.py   the render-once tape construct
+degrade.py / tape.py   the render-once tape construct
 pipeline.py  config loader + validation + stage registry + runner
 queue.py     the inbox/working/done/failed directory state machine
 storage/     StorageBackend protocol (local implemented; S3/Dropbox later)

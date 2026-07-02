@@ -43,11 +43,11 @@ def render_one(input_path: Path, config_path: Path, out_path: Path,
             from .ott import ott_file
             ott_file(master, ott["depth"])
 
-        tl = cfg["tape_loop"]
+        tl = cfg["tape"]
         if (tl["cycles"] > 1 or tl["hiss"] > 0 or tl["flutter"] > 0
                 or tl["speed"] != 1.0 or tl["reverse"]):
-            from .tape_loop import run_tape_loop
-            run_tape_loop(edl, ctx, tl, master, out_path)
+            from .tape import run_tape
+            run_tape(edl, ctx, tl, master, out_path)
         else:
             shutil.copy2(master, out_path)
 

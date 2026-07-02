@@ -15,7 +15,7 @@ def _fade_frames(fade: float, sr: int) -> int:
 
 def _print_dropouts(path: Path, amount: float, rng) -> None:
     """Bake random short dropouts into the rendered file *in place* (tape oxide
-    shedding 'printed' at render time, so a tape_loop repeats the same holes).
+    shedding 'printed' at render time, so a tape repeats the same holes).
     amount 0..1 scales the count; each hole is ~10-50 ms. Each hole gets a short
     (~3 ms) fade out/in at its edges so it doesn't click. Drawn from `rng`."""
     sr, ch, n = io.info(path)

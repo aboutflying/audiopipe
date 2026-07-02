@@ -14,7 +14,7 @@ from audiopipe.analyze import feature
 from audiopipe.degrade import degrade
 from audiopipe import io, splice
 from audiopipe.runner import render_one
-from audiopipe.tape_loop import run_tape_loop
+from audiopipe.tape import run_tape
 
 
 def _ctx(tmp_path, seed=42):
@@ -63,7 +63,7 @@ def _tape_cfg(tmp_path, cycles, recursive=False, seam="cut"):
     cfg = tmp_path / "p.yaml"
     cfg.write_text(yaml.safe_dump({
         "chain": ["grain", "rearrange", "splice"],
-        "tape_loop": {"cycles": cycles, "wear": 0.6, "feedback": recursive,
+        "tape": {"cycles": cycles, "wear": 0.6, "feedback": recursive,
                       "seam": seam}}))
     return cfg
 
@@ -72,7 +72,7 @@ def test_tape_loop_cycles1_is_noop(tmp_path):
     tone = write_sweep(tmp_path / "in.wav", seconds=3.0)
     out1 = tmp_path / "c1.wav"
     render_one(tone, _tape_cfg(tmp_path, 1), out1, tmp_path / "s1")
-    # equals the plain chain output (cycles:1 never enters tape_loop concat)
+    # equals the plain chain output (cycles:1 never enters tape concat)
     assert io.frames_of(out1) > 0
 
 
@@ -131,7 +131,7 @@ def test_disintegrates_across_cycles(tmp_path):
     loop = scratch / "loop.wav"
     splice.render_edl(edl, loop, join="cut", fade=0.0, channels="sum")
     e = EDL(segments=[], seed=42, sample_rate=16000)
-    run_tape_loop(e, _ctx(scratch), {"cycles": 8, "wear": 0.6,
+    run_tape(e, _ctx(scratch), {"cycles": 8, "wear": 0.6,
                   "feedback": False, "seam": "cut", "hiss": 0.0,
                   "flutter": 0.0, "speed": 1.0, "reverse": False}, loop, tmp_path / "o.wav")
     cyc = sorted(e.segments, key=lambda s: s.cycle)
@@ -153,7 +153,7 @@ def test_tape_loop_region_windows_content(tmp_path):
                "region": region, "hiss": 0.0, "flutter": 0.0, "speed": 1.0,
                "reverse": False}
         out = tmp_path / f"o_{region}.wav"
-        run_tape_loop(e, _ctx(scratch), cfg, loop, out)
+        run_tape(e, _ctx(scratch), cfg, loop, out)
         return io.frames_of(out)
 
     full = run(None)
@@ -183,17 +183,17 @@ def test_degrade_components_independent(tmp_path):
 
 def test_tape_character_single_pass(tmp_path):
     # cycles:1 with character dials applies a finishing tape pass (hiss/flutter/
-    # speed via tape_loop, dropouts printed at splice), via render_one
+    # speed via tape, dropouts printed at splice), via render_one
     sweep = write_sweep(tmp_path / "in.wav", seconds=3.0)
     cfg = tmp_path / "p.yaml"
     cfg.write_text(yaml.safe_dump({
         "chain": ["grain", "splice"],
         "splice": {"dropouts": 0.5},
-        "tape_loop": {"cycles": 1, "hiss": 0.4, "flutter": 0.2, "speed": 1.1}}))
+        "tape": {"cycles": 1, "hiss": 0.4, "flutter": 0.2, "speed": 1.1}}))
     out = tmp_path / "out.wav"
     _, edl, _ = render_one(sweep, cfg, out, tmp_path / "scratch")
     assert out.exists()
-    tl = [h for h in edl.history if h["stage"] == "tape_loop"][0]["params"]
+    tl = [h for h in edl.history if h["stage"] == "tape"][0]["params"]
     assert tl["cycles"] == 1 and tl["hiss"] == 0.4 and tl["speed"] == 1.1
     sp = [h for h in edl.history if h["stage"] == "splice"][0]["params"]
     assert sp["dropouts"] == 0.5
@@ -207,7 +207,7 @@ def test_tape_loop_reverse_whole_output(tmp_path):
     cfg = tmp_path / "p.yaml"
     cfg.write_text(yaml.safe_dump({
         "chain": ["grain", "splice"],
-        "tape_loop": {"reverse": True}}))
+        "tape": {"reverse": True}}))
     out = tmp_path / "out.wav"
     render_one(sweep, cfg, out, tmp_path / "scratch")
     fwd, _ = sf.read(str(sweep))

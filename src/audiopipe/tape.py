@@ -26,16 +26,16 @@ def _region_frames(region, n: int, sr: int) -> tuple[int, int]:
     if region is None:
         return 0, n
     if not (isinstance(region, (list, tuple)) and len(region) == 2):
-        raise ValueError("tape_loop.region must be [start_sec, end_sec] or null")
+        raise ValueError("tape.region must be [start_sec, end_sec] or null")
     start = max(0, int(region[0] * sr))
     end = min(n, int(region[1] * sr))
     if end <= start:
-        raise ValueError(f"tape_loop.region {region} is empty within the "
+        raise ValueError(f"tape.region {region} is empty within the "
                          f"{n / sr:.2f}s loop content")
     return start, end
 
 
-def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, in_path: Path, out_path: Path) -> None:
+def run_tape(edl: EDL, ctx: Context, cfg: dict, in_path: Path, out_path: Path) -> None:
     """The tape stage: apply physical character (hiss/wear/flutter/varispeed) to
     the rendered master at `in_path`, optionally looping `cycles` copies of a
     `region` of it (render-once, degrade-per-cycle). Writes out_path."""
@@ -55,7 +55,7 @@ def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, in_path: Path, out_path: Pa
         if reverse:
             cur = np.ascontiguousarray(cur[::-1])     # play the whole tape backwards
         sf.write(str(out_path), cur, sr)
-        edl.record("tape_loop", {"cycles": 1, "speed": speed, "flutter": flutter,
+        edl.record("tape", {"cycles": 1, "speed": speed, "flutter": flutter,
                                  "hiss": hiss, "reverse": reverse,
                                  "region": cfg.get("region")})
         return
@@ -90,7 +90,7 @@ def run_tape_loop(edl: EDL, ctx: Context, cfg: dict, in_path: Path, out_path: Pa
     if reverse:
         y = io.read_frames(out_path, 0, io.frames_of(out_path), "keep")
         sf.write(str(out_path), np.ascontiguousarray(y[::-1]), sr)  # whole tape backwards
-    edl.record("tape_loop", {"cycles": cycles, "wear": wear_amount,
+    edl.record("tape", {"cycles": cycles, "wear": wear_amount,
                              "feedback": feedback, "seam": cfg["seam"],
                              "speed": speed, "flutter": flutter, "hiss": hiss,
                              "reverse": reverse, "region": cfg.get("region"),

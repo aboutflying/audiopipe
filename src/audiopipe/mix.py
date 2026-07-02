@@ -2,7 +2,7 @@ from __future__ import annotations
 import numpy as np
 
 # The one genuinely new primitive: parallel overlay on a shared timeline. Serial
-# splice/tape_loop lay audio end-to-end; this sums voices *at once* at absolute
+# splice/tape lay audio end-to-end; this sums voices *at once* at absolute
 # frame offsets, which is what long-form (incommensurate loops) needs.
 
 
