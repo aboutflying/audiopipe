@@ -479,7 +479,7 @@ score:
       gain: 0.8
       pan: -0.3                           # -1..1, equal-power
       pitch: 0                            # semitones (float), voice default
-      evolve: 0.15                        # tape wear accrued per cycle -> degrade()
+      wear: 0.15                          # tape wear accrued per cycle -> degrade()
       seam: crossfade                     # loop-point join: cut | zerocross | crossfade
 
     - name: drone
@@ -495,10 +495,11 @@ score:
         - { at: 190.0, pitch: -5, gain: 0.9 }
 ```
 
-Per-voice keys default like the dials elsewhere: `offset: 0`, `gain: 1.0`, `pan: 0`,
-`pitch: 0`, `evolve: 0`, `seam: crossfade`. `period` and `events` are both optional but a
-voice needs at least one. Unknown keys are an error (fail loud), consistent with the loader
-contract.
+Per-voice keys follow the transparent-default rule used everywhere else — omit one and it
+does nothing: `offset: 0`, `gain: 1.0`, `pan: 0`, `pitch: 0`, `wear: 0`, `seam: crossfade`.
+`period` and `events` are both optional, but a voice needs at least one. Unknown keys are an
+error (fail loud), consistent with the loader contract. `wear` here is the per-voice
+counterpart of `tape_loop.wear`, and it drives the same `degrade` operator.
 
 ### Canonical IR: `Placement`
 
@@ -511,16 +512,16 @@ class Placement:
     voice: str
     content: Path        # the render-once loop content for this voice
     start_frame: int     # absolute position on the master timeline
-    cycle: int           # loop count so far -> wear = evolve * f(cycle)
+    cycle: int           # loop count so far; drives degrade wear = voice.wear * f(cycle)
     gain: float
     pan: float           # -1..1, equal-power
-    pitch: float         # semitones; sign convention matches `degrade` wear ramp
+    pitch: float         # semitones (varispeed by default)
 ```
 
 The whole score is `list[Placement]` + `duration`. That list is what the sidecar records
 and is hand-editable: nudge one `start_frame`, change one `pitch`, and re-render exactly.
-`cycle` is the multi-voice heir to `Segment.cycle` — it drives `degrade(content,
-evolve * cycle / span)` so each voice audibly ages as the piece unfolds.
+`cycle` is the multi-voice heir to `Segment.cycle` — it feeds `degrade(content,
+voice.wear * cycle / span)` so each voice audibly ages as the piece unfolds.
 
 ### Determinism: per-voice sub-seeds
 
@@ -540,10 +541,12 @@ the whole run.
    time, assign each a `cycle` index. -> `list[Placement]`.
 3. **Render each placement.** `degrade` the content by that cycle's wear; transpose by
    `pitch` (varispeed resample, or phase-vocoder under `pitch_mode: timed`).
-4. **Mix onto the master timeline.** Allocate a `duration`-length buffer, sum each placement
-   at its `start_frame` with equal-power pan, then limit to `normalize` (record the applied
-   makeup/limiter gain). Stream out block by block via `io.BlockWriter` — never hold the
-   whole piece in RAM.
+4. **Mix onto the master timeline.** Allocate one `duration`-length stereo buffer, sum each
+   placement at its `start_frame` with equal-power pan, then normalize the peak to the
+   `normalize` ceiling (record the applied gain). Holding the master buffer in RAM is the
+   deliberate choice — it matches the in-memory decision made for the effect stages and makes
+   the global peak normalize a single clean pass. A `duration` of tens of minutes is a few
+   hundred MB; only reach for a two-pass streamed limiter if you ever need unbounded length.
 5. **Sidecar** records `duration`, the resolved config, and the full compiled `list[Placement]`
    so a 10-minute generative piece re-renders bit-identically from the seed.
 
@@ -552,8 +555,8 @@ the whole run.
 New, mirroring the repo's grain; nothing existing is rewritten:
 - `src/audiopipe/score.py` — parse the `score` block, render voice content, compile
   `period`/`events` -> `list[Placement]`, orchestrate.
-- `src/audiopipe/mix.py` — the one genuinely new primitive: timeline allocation, equal-power
-  pan, summing at absolute frame offsets, limiting, block-streamed output.
+- `src/audiopipe/mix.py` — the one genuinely new primitive: master-buffer allocation,
+  equal-power pan, summing at absolute frame offsets, and peak normalize.
 - `src/audiopipe/cli.py` — `audiopipe score config/score.yaml -o out.wav`. A score has many
   sources, so it is its own entrypoint, not the one-file `process`/`run` path.
 

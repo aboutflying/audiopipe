@@ -21,6 +21,10 @@ def main(argv=None) -> int:
 
     sub.add_parser("process", help="drain inbox/")
 
+    ps = sub.add_parser("score", help="render a long-form score (many voices)")
+    ps.add_argument("config", type=Path)
+    ps.add_argument("-o", "--out", type=Path, required=True)
+
     args = p.parse_args(argv)
 
     if args.cmd == "run":
@@ -32,6 +36,11 @@ def main(argv=None) -> int:
         outs = process_inbox(args.work, args.config)
         for o in outs:
             print(o)
+    elif args.cmd == "score":
+        from .score import render_score
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        placements = render_score(args.config, args.out)
+        print(f"{args.out}  ({len(placements)} placements)")
     return 0
 
 
