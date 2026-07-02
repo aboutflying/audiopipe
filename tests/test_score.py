@@ -69,18 +69,43 @@ def test_mix_lands_energy_at_exact_frames_and_pans():
     assert np.all(m[:100] == 0) and np.all(m[251:] == 0)
 
 
-def test_mix_normalizes_to_ceiling():
-    click = np.zeros((10, 1), dtype="float32"); click[0] = 0.9
-    m = mix_placements([Placement("a", "x", 0, 0, 1.0, 0.0, 0.0)], {"a": click}, 100,
-                       normalize_db=-1.0)
-    assert abs(np.max(np.abs(m)) - 10 ** (-1.0 / 20)) < 1e-4   # peak == the ceiling
+def test_limiter_holds_ceiling_but_leaves_quiet_alone():
+    from audiopipe.mix import limit
+    sr = 1000
+    # loud middle passage over the ceiling; quiet elsewhere
+    y = np.full((sr, 2), 0.2, dtype="float32")
+    y[400:600] = 1.5
+    out = limit(y, sr, ceiling_db=-1.0)
+    ceiling = 10 ** (-1.0 / 20)
+    assert np.max(np.abs(out)) <= ceiling + 1e-4    # ceiling guaranteed
+    assert np.allclose(out[:300], 0.2, atol=1e-3)   # quiet part NOT scaled
+    # a limiter never boosts: an all-quiet buffer passes through untouched
+    q = np.full((sr, 2), 0.1, dtype="float32")
+    assert np.allclose(limit(q, sr, -1.0), q, atol=1e-6)
 
 
 def test_overlap_sums():
-    # two placements overlapping at the same frame add
+    # two placements overlapping at the same frame add (under the ceiling,
+    # the limiter leaves the sum untouched)
     tone = np.ones((10, 1), dtype="float32") * 0.3
     m = mix_placements([Placement("a", "x", 0, 0, 1.0, 0.0, 0.0),
                         Placement("b", "x", 0, 0, 1.0, 0.0, 0.0)],
-                       {"a": tone, "b": tone}, 10, normalize_db=0.0)
-    # both centre-panned (0.707 each) and summed, then normalized to 0 dBFS -> peak 1.0
-    assert abs(np.max(np.abs(m)) - 1.0) < 1e-4
+                       {"a": tone, "b": tone}, 10, normalize_db=0.0, sr=1000)
+    # both centre-panned (0.707 each) and summed: 2 * 0.3 * 0.707 = 0.424
+    assert abs(np.max(np.abs(m)) - 2 * 0.3 * np.cos(np.pi / 4)) < 1e-3
+
+
+def test_score_writes_sidecar(tmp_path):
+    import json, yaml, soundfile as sf
+    from audiopipe.score import render_score
+    click = np.zeros((100, 1), dtype="float32"); click[0] = 0.5
+    sf.write(str(tmp_path / "c.wav"), click, 44100)
+    cfg = tmp_path / "s.yaml"
+    cfg.write_text(yaml.safe_dump({"score": {
+        "duration": 2.0, "seed": 7,
+        "voices": [{"name": "a", "source": str(tmp_path / "c.wav"), "period": 0.5}]}}))
+    pl = render_score(cfg, tmp_path / "out.wav")
+    side = json.loads((tmp_path / "out.json").read_text())
+    assert side["seed"] == 7
+    assert len(side["placements"]) == len(pl) == 4
+    assert side["placements"][0]["voice"] == "a"

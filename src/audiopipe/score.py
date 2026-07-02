@@ -65,10 +65,13 @@ def _with_defaults(voice: dict) -> dict:
 
 def render_score(config_path: Path, out_path: Path, sr: int = 44100) -> list[Placement]:
     """Prototype (M5 steps 1-2): sample-source voices only, overlaid on a timeline.
-    Pitch, per-cycle wear, and {chain: ...} sources land in steps 3-4."""
+    Pitch, per-cycle wear, and {chain: ...} sources land in steps 3-4. The seed
+    will drive per-voice sub-RNGs (hash(seed, voice.name)) once wear lands."""
+    from . import sidecar
     cfg = yaml.safe_load(Path(config_path).read_text())["score"]
     duration = float(cfg["duration"])
     normalize = float(cfg.get("normalize", -1.0))
+    seed = int(cfg.get("seed", 42))
     voices = [_with_defaults(v) for v in cfg["voices"]]
 
     content = {}
@@ -81,6 +84,8 @@ def render_score(config_path: Path, out_path: Path, sr: int = 44100) -> list[Pla
         v["content"] = src
 
     placements = compile_placements(voices, duration, sr)
-    master = mix.mix_placements(placements, content, int(round(duration * sr)), normalize)
+    master = mix.mix_placements(placements, content, int(round(duration * sr)),
+                                normalize, sr=sr)
     sf.write(str(out_path), master, sr)
+    sidecar.write_score(out_path, config=cfg, placements=placements, seed=seed)
     return placements

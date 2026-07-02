@@ -12,11 +12,30 @@ def pan_gains(pan: float) -> tuple[float, float]:
     return float(np.cos(theta)), float(np.sin(theta))
 
 
+def limit(master: np.ndarray, sr: int, ceiling_db: float = -1.0) -> np.ndarray:
+    """Brickwall limiter: only moments that exceed the ceiling are pulled down
+    (with ~5 ms lookahead and a smoothed gain curve); quiet material is left
+    alone. Unlike peak-normalize, one loud collision doesn't set the level of
+    the whole piece."""
+    from scipy.ndimage import minimum_filter1d
+    ceiling = 10 ** (ceiling_db / 20)
+    peak = np.max(np.abs(master), axis=1)
+    required = np.minimum(1.0, ceiling / np.maximum(peak, 1e-9))
+    held = minimum_filter1d(required, size=max(1, min(int(0.005 * sr), len(required))),
+                            mode="nearest")
+    win = np.hanning(min(max(3, int(0.05 * sr)), max(3, len(required))))
+    pad = len(win) // 2      # edge-pad so the smoothed gain doesn't dip at the ends
+    padded = np.pad(held, pad, mode="edge")
+    smooth = np.convolve(padded, win / win.sum(), mode="same")[pad:pad + len(held)]
+    gain = np.minimum(smooth, required)          # smooth ramps, ceiling guaranteed
+    return (master * gain[:, None]).astype("float32")
+
+
 def mix_placements(placements, content: dict, duration_frames: int,
-                   normalize_db: float = -1.0) -> np.ndarray:
+                   normalize_db: float = -1.0, sr: int = 44100) -> np.ndarray:
     """Allocate one stereo master buffer, sum each placement's content at its
-    start_frame with equal-power pan and gain, then normalize the peak to the
-    `normalize_db` ceiling. Returns the (frames, 2) master."""
+    start_frame with equal-power pan and gain, then limit to the `normalize_db`
+    ceiling. Returns the (frames, 2) master."""
     master = np.zeros((duration_frames, 2), dtype="float32")
     for p in placements:
         c = content[p.voice]
@@ -29,8 +48,4 @@ def mix_placements(placements, content: dict, duration_frames: int,
         seg = c[:n] * p.gain
         master[p.start_frame:p.start_frame + n, 0] += seg * lg
         master[p.start_frame:p.start_frame + n, 1] += seg * rg
-
-    peak = float(np.max(np.abs(master)))
-    if peak > 0:
-        master *= (10 ** (normalize_db / 20)) / peak
-    return master
+    return limit(master, sr, normalize_db)

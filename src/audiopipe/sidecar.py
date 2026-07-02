@@ -47,6 +47,23 @@ def write_success(out_path: Path, *, input_path: Path, config: dict, edl: EDL) -
     return side
 
 
+def write_score(out_path: Path, *, config: dict, placements, seed: int) -> Path:
+    """Provenance for a score render: resolved config, seed, and the full
+    compiled placement list, so a long-form piece re-renders exactly."""
+    side = Path(out_path).with_suffix(".json")
+    side.write_text(json.dumps({
+        "config": config,
+        "seed": seed,
+        "placements": [{"voice": p.voice, "content": str(p.content),
+                        "start_frame": p.start_frame, "cycle": p.cycle,
+                        "gain": p.gain, "pan": p.pan, "pitch": p.pitch}
+                       for p in placements],
+        "audiopipe_version": __version__,
+        "timestamp": _now(),
+    }, indent=2))
+    return side
+
+
 def write_failure(side_path: Path, *, input_path: Path, config: dict, exc: BaseException) -> Path:
     side = Path(side_path).with_suffix(".json")
     side.write_text(json.dumps({
